@@ -1,0 +1,77 @@
+Dataset:
+  sr: 16000
+
+Loader:
+  dim_mel: 128      # for Hifi-GAN
+  length_mel: 192
+
+  hop_size: 160     # for Hifi-GAN
+  n_fft: 1024       # for Hifi-GAN
+  
+
+Model:
+  use_one_hot: True
+  n_emo: 7
+
+  Style_Prior:
+    dim_emo: 7
+    dim_spk: 24
+
+    CNF:  # FFJORD
+      dim_latent: 256
+      dims_cnf: "256-256-256-256-256"
+
+    NSF:  # Neural Spline Flow
+
+  Posterior:
+    variance_regularization: 0.25
+
+  VAE:
+    #=== Encoder Configuration
+    n_EncVCBlock: 3
+
+    dim_encoder_hidden: 256
+    kernel_size_encoder: 5
+    dropout_encoder: 0.
+
+    #=== Decoder Configuration
+    n_DecVCBlock: 3
+    list_upscale: [1, 2, 1]
+
+    dim_decoder_hidden: 256
+    kernel_size_decoder: 5
+    dropout_decoder: 0.
+
+
+
+  Pretrained:
+    HuBERT:
+      dense_model_name: "hubert-base-ls960"
+      quantizer_name: "kmeans"
+      vocab_size: 100
+
+
+
+
+
+Train:
+  wandb_login: False
+
+  save_model_path: "./save_model/"
+  save_for_step: 10000
+
+  epoch: 100
+  batch_size: 32
+  num_workers: 8
+
+  learning_rate: 5.e-4    # best: 5.e-4 / 1.e-3 256
+
+  beta_LL: 5.
+  weight_decay: 1.e-4
+  
+
+
+Result:
+  asset_dir_path: "./assets/220320/"
+  tsne_save_name: "tsne_speaker.jpg"
+  reconMel_save_name: "recon_mel.jpg"

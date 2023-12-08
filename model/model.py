@@ -1,0 +1,206 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchaudio
+from torch.distributions import Normal
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+import math
+import numpy as np
+
+from .module_vae.layers import LogMelSpectrogram, Spectrogram
+import speakerEmbedder as spkEmbedder
+
+""" Unit Encoder """
+from textless.data.speech_encoder import SpeechEncoder
+
+""" Continuous Flow """
+from module_vae import *
+from module_cnf.flow import cnf
+
+
+
+class EmotionStyleGenerationFlowVAE(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        
+        """ Architecture """
+        #=== 1) wav to melspectrogram
+        self.log_mel_transform = LogMelSpectrogram(config)
+        self.log_mel_transform.eval()
+        
+        self.spec_transform = Spectrogram(config)
+        self.spec_transform.eval()
+        
+        
+        #=== 2) [Pre-trained] Unit Encoder (Hubert)
+        hubert_model_name = config['Model']['Pretrained']['HuBERT']['dense_model_name']
+        hubert_quantizer_name = config['Model']['Pretrained']['HuBERT']['quantizer_name']
+        hubert_vocab_size = config['Model']['Pretrained']['HuBERT']['vocab_size']
+        
+        # self.hubert = SpeechEncoder.by_name(
+        #     dense_model_name=hubert_model_name,
+        #     quantizer_model_name=hubert_quantizer_name,
+        #     vocab_size=hubert_vocab_size,
+        #     deduplicate=False,
+        # ).to(device)
+        # self.hubert = torch.hub.load("bshall/hubert:main", "hubert_soft", trust_repo=True).to('cuda:2')
+        # self.hubert.eval()
+        
+        #=== 3) Speaking Style Predictor (Prior Net, Conditional Continuous Flow)
+        dim_latent = config['Model']['Style_Prior']['CNF']['dim_latent']
+        dims_cnf = config['Model']['Style_Prior']['CNF']['dims_cnf']
+        dim_spk = config['Model']['Style_Prior']['dim_spk']
+        dim_emo = config['Model']['Style_Prior']['dim_emo']
+        
+        self.style_prior = cnf(dim_latent, dims_cnf, dim_spk, dim_emo, 1, config=config)
+        
+        
+        #=== 4) Posterior Style Encoder (AdaIN-like)
+        self.C_regularization = config['Model']['Posterior']['variance_regularization']
+        self.adain_encoder = encoder.Encoder(config)
+        
+        #=== 5) Decoder (AdaIN-like)
+        self.adain_decoder = decoder.Decoder(config)
+        
+        #=== 6) Post-Net
+        self.postnet = PostNet(config)
+        
+        
+    def forward(self, wav, unit, spk_emb, emo_id):
+        """
+        #=== INPUT
+        
+        * wav: trimmed,         (batch, trimmed_length)
+        * wav_full: non-trimmed, input to spk_embed
+        """
+        
+        batch_size = wav.shape[0]
+        
+        # 1) Transformation into mel spectrogram
+        with torch.no_grad():
+            mel_true = self.log_mel_transform(wav).detach()           # (B, C, T)
+            spec_true = self.spec_transform(wav).detach()
+        
+        
+        # 2) Output the style embedding from the posterior
+        # Here, the variance is regularized at C, since log-Jacovian favours the contraction of the base density,
+        # in which the data log-likelihood is fully or partially ignored.
+        # See the paper, Conditional Flow Variational Autoencoders for Structured Sequence Prediction
+        
+        mu = self.adain_encoder(spec_true)       
+        var = torch.zeros_like(mu).fill_(self.C_regularization)
+        
+        z_style = self.reparam(mu, var)
+        
+        
+        # 3) Forward on continuous flow.
+        z_t, delta_log = self.style_prior(
+            z_style, 
+            spk_emb, 
+            emo_id, 
+            torch.zeros(batch_size, 1).to(device)
+        )      # (batch_size, dim_noise), (batch_size, 1)
+        
+        logpz = Normal(0, 1).log_prob(z_t).sum(-1)
+        
+        delta_log = delta_log.view(batch_size, -1).sum(-1, keepdim=True)
+        logpx = logpz - delta_log
+        
+        loss_flowLL = -logpx.mean()
+        loss_flowBPD = loss_flowLL / z_t.shape[1] / math.log(2)
+        
+        
+        # 4) reconstruction!
+        mel_recon = self.adain_decoder(unit, z_style)       # (B, C, T)
+        mel_post = self.postnet(mel_recon)
+        
+        loss_recon = self.spec_loss(mel_true, mel_recon)
+        loss_post = self.spec_loss(mel_true, mel_post)
+        
+        
+        # Return
+        loss = [loss_post, loss_recon, loss_flowBPD]
+        return mel_post, mel_recon, mel_true, loss
+    
+    
+    
+    # def generation(self, wav, spk_emb, emo_id):
+    #     # 1) sample z-vector conditioned on spk_emb and emo_id.
+    #     # Dimension of the z-vector is (batch, dim_spk)
+        
+        
+    #     # 2) Get style vector from the cnf.
+        
+    #     # 3) Get unit represetation from the hubert.
+        
+    #     # 4) Decode.
+        
+        
+
+    def set_spkEmbedder(self):
+        # Load pre-trained model
+        m_info = torch.load("./model/pretrained_model/baseline_v2_smproto.model", map_location=device)
+        
+        # State dict
+        self.spk_embed.load_state_dict(m_info, strict=False)
+        self.spk_embed.eval()
+        
+    def spec_loss(self, mel, pred_mel):
+        return F.l1_loss(mel, pred_mel)
+    
+    def standard_normal_logprob(self, z):
+        dim_z = z.size(-1)
+        log_z = -0.5 * dim_z * np.log(2 * np.pi)
+        return log_z - z.pow(2) / 2
+        
+    def reparam(self, mu, var):
+        std = torch.sqrt(var)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+    
+    
+
+""" PostNet """
+
+class PostNet(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        n_mel = config["Loader"]["dim_mel"]
+
+        self.conv = nn.ModuleList()
+
+        self.conv.append(
+            nn.Sequential(
+                nn.Conv1d(n_mel, 512, kernel_size=5, stride=1, padding=2, dilation=1),
+                nn.BatchNorm1d(512))
+        )
+
+        for i in range(1, 5 - 1):
+            self.conv.append(
+                nn.Sequential(
+                    nn.Conv1d(512, 512, kernel_size=5, stride=1, padding=2, dilation=1),
+                    nn.BatchNorm1d(512))
+            )
+
+        self.conv.append(
+            nn.Sequential(
+                nn.Conv1d(512, n_mel, kernel_size=5, stride=1, padding=2, dilation=1),
+                nn.BatchNorm1d(n_mel))
+        )
+
+    def forward(self, x):
+        out = x
+        for i in range(len(self.conv) - 1):
+            out = torch.tanh(self.conv[i](out))
+
+        out = self.conv[-1](out)
+
+        # Residual Connection
+        # ! Comment: 의외라 깜짝 놀랐는데 이 한 줄이 loss 입장에서 상당히 중요함.
+        out = out + x
+
+        return out
+    
+    
+    
