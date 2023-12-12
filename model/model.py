@@ -64,7 +64,7 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         self.adain_decoder = decoder.Decoder(config)
         
         #=== 6) Post-Net
-        self.postnet = PostNet(config)
+        #self.postnet = PostNet(config)
         
         
     def forward(self, wav, unit, spk_emb, emo_id):
@@ -112,16 +112,17 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         
         
         # 4) reconstruction!
-        mel_recon = self.adain_decoder(unit, z_style)       # (B, C, T)
-        mel_post = self.postnet(mel_recon)
+        mels = self.adain_decoder(unit, z_style)       # (B, C, T)
+        #mel_post = self.postnet(mel_recon)
         
-        loss_recon = self.spec_loss(mel_true, mel_recon)
-        loss_post = self.spec_loss(mel_true, mel_post)
+        loss_recon_1 = self.spec_loss(mel_true, mels[0])
+        loss_recon_2 = self.spec_loss(mel_true, mels[1])
+        loss_recon_3 = self.spec_loss(mel_true, mels[2])
         
         
         # Return
-        loss = [loss_post, loss_recon, loss_flowBPD]
-        return mel_post, mel_recon, mel_true, loss
+        loss = [loss_recon_1, loss_recon_2, loss_recon_3, loss_flowBPD]
+        return *mels, mel_true, loss
     
     
     

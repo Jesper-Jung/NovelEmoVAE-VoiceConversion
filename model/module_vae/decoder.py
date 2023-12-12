@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.spectral_norm as sn
+from .fftBlock import FFTBlock
 
 from .layers import *
 
@@ -39,7 +40,14 @@ class Decoder(nn.Module):
         
         #=== last linear
         dim_mel = config['Loader']['dim_mel']
-        self.post_linear = nn.Linear(dim_hid, dim_mel, bias=False)
+        
+        n_head = 2
+        self.fft_block_2 = FFTBlock(dim_hid, n_head, dim_hid//2, dim_hid//2, dim_hid*4, [9, 1])
+        self.fft_block_3 = FFTBlock(dim_hid, n_head, dim_hid//2, dim_hid//2, dim_hid*4, [9, 1])
+        
+        self.post_linear_1 = nn.Linear(dim_hid, dim_mel, bias=False)
+        self.post_linear_2 = nn.Linear(dim_hid, dim_mel, bias=False)
+        self.post_linear_3 = nn.Linear(dim_hid, dim_mel, bias=False)
         
         
     def forward(self, unit, z_style):
@@ -59,8 +67,15 @@ class Decoder(nn.Module):
         for layer in self.Blocks:
             hid = layer(hid, cond)
             
-        out = self.post_linear(hid)
-        return out.contiguous().transpose(1, 2)     # (B, C, T)
+        mels = [self.post_linear_1(hid).contiguous().transpose(1, 2)]       # (B, C, T)
+        
+        hid, _ = self.fft_block_2(hid)
+        mels.append(self.post_linear_2(hid).contiguous().transpose(1, 2))   # (B, C, T)
+        
+        hid, _ = self.fft_block_3(hid)
+        mels.append(self.post_linear_3(hid).contiguous().transpose(1, 2))   # (B, C, T)
+
+        return mels  
     
 
 
@@ -145,8 +160,6 @@ class DecConvModule(nn.Module):
     def _upsample(self, emb, up_scale):
         emb = emb.transpose(1, 2)
         return F.interpolate(emb, scale_factor=up_scale, mode='nearest').contiguous().transpose(1, 2)
-
-
 
 
 

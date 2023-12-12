@@ -1,7 +1,7 @@
-import sys
 import os
 
 import numpy as np
+import sys
 
 import torch
 import torch.nn as nn
@@ -11,6 +11,7 @@ device = "cuda" if torch.cuda.is_available() else 'cpu'
 from dataset import Dataset_ESD, Dataset_EmovDB, collate_fn
 from torch.utils.data import DataLoader
 
+from model.textlesslib.textless.data.speech_encoder import SpeechEncoder
 from model import EmotionStyleGenerationFlowVAE as ModelStructure
 
 import fairseq
@@ -20,15 +21,12 @@ from tqdm import tqdm
 
 from utils import makedirs, check_recon_mel
 
-
+contentVec_ckpt_path = './model/contentVec/checkpoint_best_legacy_500.pt'
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 torch.manual_seed(44)
-
-
-contentVec_ckpt_path = "./model/contextVec/checkpoint_best_legacy_500.pt"
 
 
 class Train():
@@ -49,17 +47,15 @@ class Train():
 
 
         """ Model, Optimizer """
-        models, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([contentVec_ckpt_path])
-        self.unit_transformation = models[0]            # Context Vec Model
-        self.unit_transformation.to(device)
-        self.unit_transformation.eval()
-        
+        self.mode_unit_discrete = config['Train']['mode_unit_discrete']
         self.model = ModelStructure(config).to(device)
 
-        print("Autoencoder: {}".format(self.get_n_params(self.model)))
+        print("Whole Params: {}".format(self.get_n_params(self.model)))
+        print("Encoder: {}".format(self.get_n_params(self.model.adain_encoder)))
+        print("Decoder: {}".format(self.get_n_params(self.model.adain_decoder)))
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=weight_decay)
-        #self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=1)
 
 
         """ Dataset """
@@ -94,6 +90,15 @@ class Train():
         )
 
         self.cur_step = 0
+        if args.saved_step > 0:
+            self.cur_step = args.saved_step
+            
+            ###==== Load state dict
+            pth_ckpt = args.saved_dir_path + '/checkpoint_{}.pth.tar'.format(args.saved_step)
+            ckpt = torch.load(pth_ckpt)
+            self.model.load_state_dict(ckpt['model'])
+            
+        
         self.outer_pbar = tqdm(total=tot_epoch, 
                                desc="Training... >>>> Total {} Epochs".format(tot_epoch), 
                                position=0)
@@ -110,19 +115,21 @@ class Train():
 
 
     def step(self, batch):
-        wav, wav_aug, spk_emb, emo_id = list(map(lambda x: x.to(device), batch))
         
-        # transformation (train)
-        unit = self.get_unit_representation(wav_aug)
+        wav, cont, disc, spk_emb, emo_id = list(map(lambda x: x.to(device), batch))
+        if self.mode_unit_discrete:
+            unit = disc
+        else:
+            unit = cont
         
         # forward
-        mel_post, mel_recon, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
+        mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
         
         # loss
-        loss_post, loss_mel, loss_flowLL = loss
-        loss_total = loss_post + loss_mel + self.beta_LL * loss_flowLL
+        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL = loss
+        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * loss_flowLL
 
-        return loss_total, loss_post, loss_mel, loss_flowLL 
+        return loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL 
 
 
     def training_step(self):
@@ -134,20 +141,20 @@ class Train():
             self.optimizer.zero_grad()
             
             # forward & calculate total loss
-            loss_total, loss_post, loss_mel, loss_flowBPD  = self.step(batch)
+            loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD  = self.step(batch)
 
             # backwarding
             loss_total.backward()
 
             # optimize
             self.optimizer.step()
+            self.scheduler.step()
 
 
             """ end """
             loss_dict = {
                 "Total Loss": loss_total.item(), 
-                "Post Loss": loss_post.item(), 
-                "Mel Loss": loss_mel.item(),
+                "Mel 3 Loss": loss_mel_3.item(),
                 "Flow BPD Loss": loss_flowBPD.item(), 
             }
             
@@ -169,6 +176,7 @@ class Train():
             save_dict = {
                 'model': self.model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
+                'scheduler': self.scheduler.state_dict()
             }
 
             torch.save(save_dict, save_path)
@@ -177,20 +185,22 @@ class Train():
 
     def step_eval(self, batch):
         self.model.eval()
+       
+        wav, cont, disc, spk_emb, emo_id = list(map(lambda x: x.to(device), batch))
         
-        wav, _, spk_emb, emo_id = list(map(lambda x: x.to(device), batch))
-        
-        # transformation (eval)
-        unit = self.get_unit_representation(wav)
+        if self.mode_unit_discrete:
+            unit = disc
+        else:
+            unit = cont
         
         with torch.no_grad():
-            mel_post, mel_recon, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
+            mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
             
         # loss
-        loss_post, loss_mel, loss_flowBPD = loss
-        loss_total = loss_post + loss_mel + self.beta_LL * loss_flowBPD
+        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL = loss
+        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * loss_flowLL
 
-        return mel_post, mel_recon, mel_true, loss_total, loss_post, loss_mel, loss_flowBPD
+        return mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL
     
 
     def validation_step(self):
@@ -198,11 +208,13 @@ class Train():
             eval_pbar = tqdm(self.eval_loader, desc="Validation...")
 
             for batch in eval_pbar:
-                mel_post, mel_recon, mel_true, _, loss_post, loss_mel, loss_flowBPD = self.step_eval(batch)
+                mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD = self.step_eval(batch)
 
                 """ log """
                 loss_dict = {
-                    "Post Val Loss": loss_post.item(),
+                    "Mel 3 Loss": loss_mel_3.item(),
+                    "Mel 2 Loss": loss_mel_2.item(),
+                    "Mel 1 Loss": loss_mel_1.item(),
                     "Flow BPD Loss": loss_flowBPD.item()
                 }
 
@@ -211,7 +223,11 @@ class Train():
         if self.wandb_login:
             wandb.log(loss_dict)
 
-        check_recon_mel(mel_post[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
+        check_recon_mel(mel_recon_1[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
+            self.asset_path, self.outer_pbar.n, mode='recon')
+        check_recon_mel(mel_recon_2[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
+            self.asset_path, self.outer_pbar.n, mode='recon')
+        check_recon_mel(mel_recon_3[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
             self.asset_path, self.outer_pbar.n, mode='recon')
         check_recon_mel(mel_true[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
             self.asset_path, self.outer_pbar.n, mode='GT')
@@ -234,18 +250,27 @@ class Train():
     
     
     def get_unit_representation(self, wav):
+        _s = time.time()
         wav = F.pad(wav, ((400 - 320) // 2, (400 - 320) // 2), "reflect")
         padding_mask = torch.BoolTensor(wav.shape).fill_(False)
         
-        inputs = {
-            "source": wav.to(wav.device),
-            "padding_mask": padding_mask.to(wav.device),
-            "output_layer": 12,  # layer 12
-        }
-        
-        with torch.no_grad():
-            unit = self.unit_transformation.extract_features(**inputs)[0]
-        
+        if self.mode_unit_discrete is False:
+            inputs = {
+                "source": wav.to(device),
+                "padding_mask": padding_mask.to(device),
+                "output_layer": 12,  # layer 12
+            }
+            
+            with torch.no_grad():
+                unit = self.unit_transformation.extract_features(**inputs)[0]
+                
+        else:
+            # unit = torch.vstack(
+            #     [self.unit_transformation(wav[i].to(device))['units'] for i in range(self.batch_size)]
+            # ).long()
+            unit = self.unit_transformation(wav.to(device).reshape(-1))['units'].reshape(self.batch_size, -1)
+        _e = time.time()
+        print(_e - _s)
         return unit
         
 
@@ -260,6 +285,8 @@ def argument_parse():
         default=800
     )
     parser.add_argument('--gpu_visible_devices', type=str, default='3, 4, 5')
+    parser.add_argument('--saved_step', type=int, default=0)
+    parser.add_argument('--saved_dir_path', type=str)
 
     args = parser.parse_args()
 
@@ -289,8 +316,8 @@ if __name__ == "__main__":
 
     if wandb_login:
         wandb.login()
-        wandb_name = "Recon_VC"
-        wandb.init(project='Recon_Emotion_VC', name=wandb_name)
+        wandb_name = "Recon_VC_NotFlow"
+        wandb.init(project='Recon_Emotion_VC_FlowVAE', name=wandb_name)
 
     trainer = Train(config, [config_ESD, config_EmovDB])
     trainer.fit(args.epochs)

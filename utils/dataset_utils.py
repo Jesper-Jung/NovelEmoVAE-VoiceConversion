@@ -19,13 +19,15 @@ def pitch_formant_argument(wav, sr=16000,
                            min_formantShift=1, max_formantShift=1.4,
                            min_pitchShift=1, max_pitchShift=1.2,
                            min_pitchRange=1., max_pitchRange=1.15, 
-                           
                            ):
     """
     * wav       || (n_channel, t_samples), numpy
     """
     
-    if type(wav) == torch.Tensor:
+    return_torch = type(wav) == torch.Tensor
+    
+    if return_torch:
+        device = wav.device
         wav = wav.numpy(force=True)
         
     if len(wav.shape) == 1:
@@ -47,7 +49,10 @@ def pitch_formant_argument(wav, sr=16000,
     else:
         converted_sound = sound
         
-    converted_wav = np.squeeze(converted_sound.values, axis=0)
+    if return_torch:
+        converted_wav = torch.tensor(converted_sound.values).float().to(device)
+    else:
+        converted_wav = np.squeeze(converted_sound.values, axis=0)
     
     return converted_wav
 
