@@ -40,6 +40,7 @@ class Train():
         """ HyperParameters """
         self.batch_size = config['Train']['batch_size']
         self.lr = config['Train']['learning_rate']
+        lr_step = config['Train']['lr_step']
         
         self.num_workers = config['Train']['num_workers']
         self.beta_LL = config['Train']['beta_LL']
@@ -55,7 +56,7 @@ class Train():
         print("Decoder: {}".format(self.get_n_params(self.model.adain_decoder)))
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=weight_decay)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=1)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_step)
 
 
         """ Dataset """
@@ -224,11 +225,11 @@ class Train():
             wandb.log(loss_dict)
 
         check_recon_mel(mel_recon_1[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
-            self.asset_path, self.outer_pbar.n, mode='recon')
+            self.asset_path, self.outer_pbar.n, mode='recon_1')
         check_recon_mel(mel_recon_2[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
-            self.asset_path, self.outer_pbar.n, mode='recon')
+            self.asset_path, self.outer_pbar.n, mode='recon_2')
         check_recon_mel(mel_recon_3[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
-            self.asset_path, self.outer_pbar.n, mode='recon')
+            self.asset_path, self.outer_pbar.n, mode='recon_3')
         check_recon_mel(mel_true[-1].to('cpu').detach().numpy(),      # (dim_mel, len_mel)
             self.asset_path, self.outer_pbar.n, mode='GT')
 
@@ -316,7 +317,7 @@ if __name__ == "__main__":
 
     if wandb_login:
         wandb.login()
-        wandb_name = "Recon_VC_NotFlow"
+        wandb_name = "Recon_VC_Flow_detached"
         wandb.init(project='Recon_Emotion_VC_FlowVAE', name=wandb_name)
 
     trainer = Train(config, [config_ESD, config_EmovDB])

@@ -28,7 +28,15 @@ class SequentialFlow(nn.Module):
         dim_spk = config['Model']['Style_Prior']['dim_spk']
         
         self.chain = nn.ModuleList(layer_list)
-        self.spk_linear = nn.Linear(kwarg_SPEAKER['nOut'], dim_spk)
+        self.spk_linear = nn.Sequential(
+            nn.Linear(kwarg_SPEAKER['nOut'], dim_spk),
+            nn.GELU(),
+            nn.Linear(dim_spk, dim_spk),
+            nn.GELU(),
+            nn.Linear(dim_spk, dim_spk),
+            nn.GELU(),
+            nn.Linear(dim_spk, dim_spk)
+        )
 
     def forward(self, x, spk_emb, emo_id, logpx=None, reverse=False, inds=None, integration_times=None):
         if inds is None:

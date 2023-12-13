@@ -10,3 +10,4 @@ wandb==0.16.0
 librosa==0.10.1
 inflect==7.0.0
 torchdiffeq==0.0.1
+praat-parselmouth

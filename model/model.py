@@ -88,15 +88,13 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         # in which the data log-likelihood is fully or partially ignored.
         # See the paper, Conditional Flow Variational Autoencoders for Structured Sequence Prediction
         
-        mu = self.adain_encoder(spec_true)       
-        var = torch.zeros_like(mu).fill_(self.C_regularization)
+        z_style = self.adain_encoder(spec_true)       
         
-        z_style = self.reparam(mu, var)
         
         
         # 3) Forward on continuous flow.
         z_t, delta_log = self.style_prior(
-            z_style, 
+            z_style.detach(), 
             spk_emb, 
             emo_id, 
             torch.zeros(batch_size, 1).to(device)
