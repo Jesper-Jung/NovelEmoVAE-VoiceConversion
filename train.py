@@ -11,7 +11,7 @@ device = "cuda" if torch.cuda.is_available() else 'cpu'
 from dataset import Dataset_ESD, Dataset_EmovDB, collate_fn
 from torch.utils.data import DataLoader
 
-from model.textlesslib.textless.data.speech_encoder import SpeechEncoder
+#from model.textlesslib.textless.data.speech_encoder import SpeechEncoder
 from model import EmotionStyleGenerationFlowVAE as ModelStructure
 
 import fairseq
@@ -24,7 +24,7 @@ from utils import makedirs, check_recon_mel
 contentVec_ckpt_path = './model/contentVec/checkpoint_best_legacy_500.pt'
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+torch.cuda.set_device(3)
 
 torch.manual_seed(44)
 
@@ -44,10 +44,13 @@ class Train():
         
         self.num_workers = config['Train']['num_workers']
         self.beta_LL = config['Train']['beta_LL']
+        self.annealing_init = config['Train']['annealing_initial_step']
+        self.annealing_end = config['Train']['annealing_end_step']
         weight_decay = config['Train']['weight_decay']
 
 
         """ Model, Optimizer """
+        
         self.mode_unit_discrete = config['Train']['mode_unit_discrete']
         self.model = ModelStructure(config).to(device)
 
@@ -127,10 +130,10 @@ class Train():
         mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
         
         # loss
-        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL = loss
-        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * loss_flowLL
+        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post = loss
+        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * (loss_flowLL + loss_H_post) * self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
 
-        return loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL 
+        return loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post
 
 
     def training_step(self):
@@ -142,7 +145,7 @@ class Train():
             self.optimizer.zero_grad()
             
             # forward & calculate total loss
-            loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD  = self.step(batch)
+            loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD, loss_H_post  = self.step(batch)
 
             # backwarding
             loss_total.backward()
@@ -157,6 +160,7 @@ class Train():
                 "Total Loss": loss_total.item(), 
                 "Mel 3 Loss": loss_mel_3.item(),
                 "Flow BPD Loss": loss_flowBPD.item(), 
+                "Flow H Loss": loss_H_post.item(), 
             }
             
             self.training_step_end(loss_dict)      
@@ -170,6 +174,7 @@ class Train():
         self.outer_pbar.set_postfix(loss_dict)
 
         if self.wandb_login:
+            loss_dict["Annealing"] = self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
             wandb.log(loss_dict)
 
         if self.cur_step % self.save_step == 0:
@@ -198,10 +203,10 @@ class Train():
             mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
             
         # loss
-        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL = loss
-        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * loss_flowLL
+        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post = loss
+        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * (loss_flowLL + loss_H_post) * self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
 
-        return mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL
+        return mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post
     
 
     def validation_step(self):
@@ -209,14 +214,15 @@ class Train():
             eval_pbar = tqdm(self.eval_loader, desc="Validation...")
 
             for batch in eval_pbar:
-                mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD = self.step_eval(batch)
+                mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD, loss_H_post = self.step_eval(batch)
 
                 """ log """
                 loss_dict = {
                     "Mel 3 Loss": loss_mel_3.item(),
                     "Mel 2 Loss": loss_mel_2.item(),
                     "Mel 1 Loss": loss_mel_1.item(),
-                    "Flow BPD Loss": loss_flowBPD.item()
+                    "Flow BPD Loss": loss_flowBPD.item(),
+                    "Flow H Loss": loss_H_post.item(),
                 }
 
                 eval_pbar.set_postfix(loss_dict)
@@ -273,6 +279,14 @@ class Train():
         _e = time.time()
         print(_e - _s)
         return unit
+    
+    def annealing(selt, step, ANNEALING_END_STEP, ANNEALING_INITIAL_STEP=20000):
+        if step < ANNEALING_INITIAL_STEP:
+            return 0.
+        elif ANNEALING_INITIAL_STEP <= step and step < ANNEALING_END_STEP:
+            return (step - ANNEALING_INITIAL_STEP) / (ANNEALING_END_STEP - ANNEALING_INITIAL_STEP)
+        else:
+            return 1.
         
 
 
@@ -312,12 +326,13 @@ if __name__ == "__main__":
 
     wandb_login = config['Train']['wandb_login']
     lr = config['Train']['learning_rate']
+    mode_unit_discrete = config['Train']['mode_unit_discrete']
 
     args = argument_parse()
 
     if wandb_login:
         wandb.login()
-        wandb_name = "Recon_VC_Flow_detached"
+        wandb_name = "Recon_VC_Flow_detached_discrete" if mode_unit_discrete else "Recon_VC_Flow_detached_contentVec"
         wandb.init(project='Recon_Emotion_VC_FlowVAE', name=wandb_name)
 
     trainer = Train(config, [config_ESD, config_EmovDB])

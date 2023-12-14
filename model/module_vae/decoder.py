@@ -18,8 +18,12 @@ class Decoder(nn.Module):
         """ Architecture """
         #=== unit embedding
         n_units = config['Model']['Pretrained']['HuBERT']['vocab_size']
-        # self.unit_embedding = nn.Embedding(n_units, dim_hid)
-        self.unit_embedding = nn.Linear(768, dim_hid)
+        self.mode_unit_discrete = config['Train']['mode_unit_discrete']
+        
+        if self.mode_unit_discrete:
+            self.unit_embedding = nn.Embedding(config['Model']['Pretrained']['HuBERT']['vocab_size'], dim_hid)
+        else:
+            self.unit_embedding = nn.Linear(768, dim_hid)
         
         #=== Decoder-VQ Blocks
         n_Block = config['Model']['VAE']['n_DecVCBlock']

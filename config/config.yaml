@@ -11,11 +11,13 @@ Loader:
 
 Model:
   use_one_hot: True
+  use_spec_input: True
+  use_spk_linear: False   # If false, you match the dim_spk by 512.
   n_emo: 7
 
   Style_Prior:
     dim_emo: 7
-    dim_spk: 24
+    dim_spk: 512
 
     CNF:  # FFJORD
       dim_latent: 160
@@ -56,7 +58,9 @@ Model:
 
 Train:
   wandb_login: True
-  mode_unit_discrete: False # do not use
+  mode_unit_discrete: True 
+  mode_flow_detach: False
+  
 
   save_model_path: "./save_model/"
   save_for_step: 10000
@@ -65,10 +69,12 @@ Train:
   batch_size: 64
   num_workers: 8
 
-  learning_rate: 5.e-4    # best: 5.e-4 / 1.e-3 256
-  lr_step: 0.9999
+  learning_rate: 5.e-4    # best: 5.e-4 & 0.99999 LR STEP
+  lr_step: 0.99999
 
   beta_LL: 1.
+  annealing_initial_step: 0
+  annealing_end_step: 40000
   weight_decay: 1.e-4
   
 

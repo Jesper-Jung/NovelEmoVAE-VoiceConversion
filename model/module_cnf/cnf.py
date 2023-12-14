@@ -19,6 +19,8 @@ class SequentialFlow(nn.Module):
         self.n_emo = config['Model']['n_emo']
         
         self.use_one_hot = config['Model']['use_one_hot']
+        self.use_spk_linear = config['Model']['use_spk_linear']
+        
         if self.use_one_hot:
             dim_emo = self.n_emo
         else:
@@ -28,15 +30,16 @@ class SequentialFlow(nn.Module):
         dim_spk = config['Model']['Style_Prior']['dim_spk']
         
         self.chain = nn.ModuleList(layer_list)
-        self.spk_linear = nn.Sequential(
-            nn.Linear(kwarg_SPEAKER['nOut'], dim_spk),
-            nn.GELU(),
-            nn.Linear(dim_spk, dim_spk),
-            nn.GELU(),
-            nn.Linear(dim_spk, dim_spk),
-            nn.GELU(),
-            nn.Linear(dim_spk, dim_spk)
-        )
+        if self.use_spk_linear:
+            self.spk_linear = nn.Sequential(
+                nn.Linear(kwarg_SPEAKER['nOut'], dim_spk),
+                nn.GELU(),
+                nn.Linear(dim_spk, dim_spk),
+                nn.GELU(),
+                nn.Linear(dim_spk, dim_spk),
+                nn.GELU(),
+                nn.Linear(dim_spk, dim_spk)
+            )
 
     def forward(self, x, spk_emb, emo_id, logpx=None, reverse=False, inds=None, integration_times=None):
         if inds is None:
@@ -49,7 +52,9 @@ class SequentialFlow(nn.Module):
             emo_emb = F.one_hot(emo_id, num_classes=self.n_emo).float()
         else:
             emo_emb = self.emo_embed(emo_id)        # (B, dim_emo)
-        spk_emb = self.spk_linear(spk_emb)          # (B, dim_spk)
+            
+        if self.use_spk_linear:
+            spk_emb = self.spk_linear(spk_emb)          # (B, dim_spk)
 
         if logpx is None:
             for i in inds:
