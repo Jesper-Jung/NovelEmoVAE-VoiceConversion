@@ -9,10 +9,10 @@ import math
 import numpy as np
 
 from .module_vae.layers import LogMelSpectrogram, Spectrogram
-import speakerEmbedder as spkEmbedder
+#import speakerEmbedder as spkEmbedder
 
 """ Unit Encoder """
-from textless.data.speech_encoder import SpeechEncoder
+#from textless.data.speech_encoder import SpeechEncoder
 
 """ Continuous Flow """
 from module_vae import *
@@ -58,7 +58,14 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         
         #=== 4) Posterior Style Encoder (AdaIN-like)
         self.C_regularization = config['Model']['Posterior']['variance_regularization']
+        self.flow_detach = config['Train']['mode_flow_detach']
+        dim_enc_hid = config['Model']['VAE']['dim_encoder_hidden']
+        
+        self.mode_spec = config['Model']['use_spec_input']
         self.adain_encoder = encoder.Encoder(config)
+        if not self.flow_detach:
+            self.mu_linear = nn.Linear(dim_enc_hid, dim_enc_hid, bias=False)
+            self.logvar_linear = nn.Linear(dim_enc_hid, dim_enc_hid, bias=False)
         
         #=== 5) Decoder (AdaIN-like)
         self.adain_decoder = decoder.Decoder(config)
@@ -88,16 +95,26 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         # in which the data log-likelihood is fully or partially ignored.
         # See the paper, Conditional Flow Variational Autoencoders for Structured Sequence Prediction
         
-        z_style = self.adain_encoder(spec_true)       
-        
-        
+        enc_hid = self.adain_encoder(spec_true if self.mode_spec else mel_true)     
+        if not self.flow_detach:  
+            mu, logvar = self.mu_linear(enc_hid), self.logvar_linear(enc_hid)
+            z_style = self.reparam(mu, logvar)
+            
+            loss_H_post = -0.5 * math.log(2 * math.pi) - 0.5 * logvar - 0.5
+            loss_H_post = loss_H_post.sum(-1).mean() / logvar.shape[1] / math.log(2)
+            
+        else:
+            z_style = enc_hid
+            loss_H_post = torch.tensor([0]).to(wav.device)
+            
+        #var = torch.zeros_like(mu).fill_(self.C_regularization)
         
         # 3) Forward on continuous flow.
         z_t, delta_log = self.style_prior(
-            z_style.detach(), 
+            z_style.detach() if self.flow_detach else z_style, 
             spk_emb, 
             emo_id, 
-            torch.zeros(batch_size, 1).to(device)
+            torch.zeros(batch_size, 1).to(wav.device)
         )      # (batch_size, dim_noise), (batch_size, 1)
         
         logpz = Normal(0, 1).log_prob(z_t).sum(-1)
@@ -119,7 +136,7 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         
         
         # Return
-        loss = [loss_recon_1, loss_recon_2, loss_recon_3, loss_flowBPD]
+        loss = [loss_recon_1, loss_recon_2, loss_recon_3, loss_flowBPD, loss_H_post]
         return *mels, mel_true, loss
     
     
@@ -153,8 +170,8 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         log_z = -0.5 * dim_z * np.log(2 * np.pi)
         return log_z - z.pow(2) / 2
         
-    def reparam(self, mu, var):
-        std = torch.sqrt(var)
+    def reparam(self, mu, logvar):
+        std = torch.exp(logvar/2)
         eps = torch.randn_like(std)
         return mu + eps * std
     

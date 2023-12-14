@@ -20,8 +20,8 @@ Model:
     dim_spk: 512
 
     CNF:  # FFJORD
-      dim_latent: 160
-      dims_cnf: "512-512-512-512-512"
+      dim_latent: 192
+      dims_cnf: "256-256-256-256-256"
 
     NSF:  # Neural Spline Flow
 
@@ -32,7 +32,7 @@ Model:
     #=== Encoder Configuration
     n_EncVCBlock: 3
 
-    dim_encoder_hidden: 160
+    dim_encoder_hidden: 192
     kernel_size_encoder: 5
     dropout_encoder: 0.
 
@@ -58,7 +58,7 @@ Model:
 
 Train:
   wandb_login: True
-  mode_unit_discrete: True 
+  mode_unit_discrete: False
   mode_flow_detach: False
   
 

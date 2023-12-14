@@ -5,14 +5,14 @@ Dataset_Info:
   sr: 16000 # Hz
 
 Paths:
-  root_dataset: "/data"
+  root_dataset: "/workspace/MSDegree/data"
 
   path_dataset: "/EmovDB_Dataset"
   path_save: "/EmovDB_preprocessed"
 
 Preprocess:
   top_db: 20
-  length_mel: 192
+  length_mel: 128
 
   hop_size: 160    # for Hifi-GAN
   n_mel: 128    # for Hifi-GAN

@@ -4,6 +4,7 @@ import sys
 sys.path.append('./dataset')
 import yaml
 import re
+import time
 
 from torch.utils.data import Dataset, DataLoader
 import torch
@@ -46,7 +47,9 @@ class Dataset_ESD(Dataset):
         
         # example. 'DATAPATH/wav/Happy/eval/0020_000716.npy'
         data_path = config['Paths']['root_dataset'] + config['Paths']['path_save']
-        self.wav_list = sorted(glob("{}/wav/**/{}/**.npy".format(data_path, dataset_mode)), reverse=True)
+        self.wav_list = sorted(glob("{}/wav/**/{}/**.npy".format(data_path, dataset_mode)))
+        self.cont_list = sorted(glob("{}/cont/**/{}/**.npy".format(data_path, dataset_mode)))
+        self.disc_list = sorted(glob("{}/disc/**/{}/**.npy".format(data_path, dataset_mode)))
         
         self.mode = dataset_mode
         self.crop_len = length_wav
@@ -73,8 +76,9 @@ class Dataset_ESD(Dataset):
         """
             random pitch, random formant, crop, random gain
         """
-        wav = np.load(self.wav_list[idx])
-        wav = self.crop_and_gain(wav, self.crop_len) # (cropped_len)
+        
+        wav, disc, cont = np.load(self.wav_list[idx]), np.load(self.disc_list[idx]), np.load(self.cont_list[idx])
+        wav, disc, cont = self.crop_and_gain(wav, disc, cont, self.crop_len) # (cropped_len)
 
         ### Speaker ID
         spk_emb = np.load(self.wav_list[idx].replace('wav', 'spkEmb'))
@@ -87,22 +91,39 @@ class Dataset_ESD(Dataset):
         
         return {
             'wav': wav,
+            'disc': disc,
+            'cont': cont,
             'spk_emb': spk_emb,
             'emo_state': emo_state,
             'pth': self.wav_list[idx]
         }
         
-    def crop_and_gain(self, wav, crop_len):
+        
+       
+    def crop_and_gain(self, wav, discUnit, contUnit, crop_len):
         if len(wav.shape) == 2:
             wav = wav.squeeze(0)
             
-        #=== Crop
+        if len(discUnit.shape) == 3:
+            discUnit = discUnit.squeeze(0)
+            
+        if len(contUnit.shape) == 3:
+            contUnit = contUnit.squeeze(0)
+            
+        #=== Crop (wav)
         if crop_len >= wav.shape[0]:
             wav_cropped = self._pad_1d(wav, crop_len)
-        else:
-            _pad_start = np.random.randint(wav.shape[0] - crop_len)
-            _pad_end = _pad_start + crop_len
-            wav_cropped = wav[_pad_start : _pad_end]
+            contUnit_cropped = self._pad_2d_T(contUnit, crop_len // 320)
+            discUnit_cropped = self._pad_1d(discUnit, crop_len // 320)
+        else:                                           # Hubert -> 320 hop size.
+            k = wav.shape[0]//320 - crop_len//320
+            _pad_frame_start = np.random.randint(wav.shape[0]//320 - crop_len//320) if k > 0 else 0
+            _pad_frame_end = _pad_frame_start + crop_len // 320
+            
+            wav_cropped = wav[_pad_frame_start * 320 : _pad_frame_end * 320]
+            contUnit_cropped = contUnit[_pad_frame_start : _pad_frame_end]
+            discUnit_cropped = discUnit[_pad_frame_start : _pad_frame_end]
+            
             
         #=== Gain
         if self.mode == "train":
@@ -110,13 +131,19 @@ class Dataset_ESD(Dataset):
             flip = -1 if random.random() > 0.5 else 1
             wav_cropped = flip * gain * wav_cropped / max(np.max(np.abs(wav_cropped)), 1e-5)
             
-        return wav_cropped
+        
+            
+        return wav_cropped, discUnit_cropped, contUnit_cropped
         
      
     def _pad_1d(self, data, crop_len):
         pad_len = crop_len - data.shape[0]
         return np.pad(data, (0, pad_len))
-            
+    
+    def _pad_2d_T(self, data, crop_frame_len):
+        pad_len = crop_frame_len - data.shape[0]
+        padded = np.pad(data, ((0, pad_len), (0, 0)))
+        return padded
         
         
 
@@ -140,6 +167,8 @@ class Dataset_EmovDB(Dataset):
         # example. 'DATAPATH/wav/Happy/eval/0020_000716.npy'
         data_path = config['Paths']['root_dataset'] + config['Paths']['path_save']
         self.wav_list = sorted(glob("{}/wav/**/{}/**.npy".format(data_path, dataset_mode)))
+        self.cont_list = sorted(glob("{}/cont/**/{}/**.npy".format(data_path, dataset_mode)))
+        self.disc_list = sorted(glob("{}/disc/**/{}/**.npy".format(data_path, dataset_mode)))
         
         self.mode = dataset_mode
         self.crop_len = length_wav
@@ -166,8 +195,8 @@ class Dataset_EmovDB(Dataset):
         """
             random pitch, random formant, crop, random gain
         """
-        wav = np.load(self.wav_list[idx])
-        wav = self.crop_and_gain(wav, self.crop_len) # (cropped_len)
+        wav, disc, cont = np.load(self.wav_list[idx]), np.load(self.disc_list[idx]), np.load(self.cont_list[idx])
+        wav, disc, cont = self.crop_and_gain(wav, disc, cont, self.crop_len) # (cropped_len)
 
         ### Speaker ID
         spk_emb = np.load(self.wav_list[idx].replace('wav', 'spkEmb'))
@@ -180,23 +209,38 @@ class Dataset_EmovDB(Dataset):
         
         return {
             'wav': wav,
+            'disc': disc,
+            'cont': cont,
             'spk_emb': spk_emb,
             'emo_state': emo_state,
             'pth': self.wav_list[idx]
         }
         
         
-    def crop_and_gain(self, wav, crop_len):
+    def crop_and_gain(self, wav, discUnit, contUnit, crop_len):        
         if len(wav.shape) == 2:
             wav = wav.squeeze(0)
             
-        #=== Crop
+        if len(discUnit.shape) == 3:
+            discUnit = discUnit.squeeze(0)
+            
+        if len(contUnit.shape) == 3:
+            contUnit = contUnit.squeeze(0)
+            
+        #=== Crop (wav)
         if crop_len >= wav.shape[0]:
             wav_cropped = self._pad_1d(wav, crop_len)
-        else:
-            _pad_start = np.random.randint(wav.shape[0] - crop_len)
-            _pad_end = _pad_start + crop_len
-            wav_cropped = wav[_pad_start : _pad_end]
+            contUnit_cropped = self._pad_2d_T(contUnit, crop_len // 320)
+            discUnit_cropped = self._pad_1d(discUnit, crop_len // 320)
+        else:                                           # Hubert -> 320 hop size.
+            k = wav.shape[0]//320 - crop_len//320
+            _pad_frame_start = np.random.randint(wav.shape[0]//320 - crop_len//320) if k > 0 else 0
+            _pad_frame_end = _pad_frame_start + crop_len // 320
+            
+            wav_cropped = wav[_pad_frame_start * 320 : _pad_frame_end * 320]
+            contUnit_cropped = contUnit[_pad_frame_start : _pad_frame_end]
+            discUnit_cropped = discUnit[_pad_frame_start : _pad_frame_end]
+            
             
         #=== Gain
         if self.mode == "train":
@@ -204,26 +248,38 @@ class Dataset_EmovDB(Dataset):
             flip = -1 if random.random() > 0.5 else 1
             wav_cropped = flip * gain * wav_cropped / max(np.max(np.abs(wav_cropped)), 1e-5)
             
-        return wav_cropped
+        return wav_cropped, discUnit_cropped, contUnit_cropped
         
      
     def _pad_1d(self, data, crop_len):
         pad_len = crop_len - data.shape[0]
         return np.pad(data, (0, pad_len))
-            
+    
+    def _pad_2d_T(self, data, crop_frame_len):
+        pad_len = crop_frame_len - data.shape[0]
+        padded = np.pad(data, ((0, pad_len), (0, 0)))
+        return padded
+        
+ 
             
             
 
 def collate_fn(batch):
     batch_size = len(batch)
-
-    wav_list = torch.tensor(np.array([b['wav'] for b in batch])).float()
-    wav_aug_list = torch.tensor(np.array([pitch_formant_argument(b['wav']) for b in batch])).float()
-    spkEmb_list = torch.tensor(np.array([b['spk_emb'] for b in batch])).float()
-    emoID_list = torch.tensor(np.array([dataset.Codebook_EmoState[b['emo_state']] for b in batch])).long()
-    # print([b['pth'] for b in batch])
     
-    return wav_list, wav_aug_list, spkEmb_list, emoID_list
+    wavs = np.array([b['wav'] for b in batch], dtype=np.float64)
+    conts = np.array([b['cont'] for b in batch], dtype=np.float64)
+    discs = np.array([b['disc'] for b in batch], dtype=np.int64)
+    spkEmbs = np.array([b['spk_emb'] for b in batch], dtype=np.float64)
+    emoIDs = np.array([dataset.Codebook_EmoState[b['emo_state']] for b in batch], dtype=np.int64)
+    
+    wav_tensor = torch.tensor(wavs).float()
+    cont_tensor = torch.tensor(conts).float()
+    disc_tensor = torch.tensor(discs).long()
+    spkEmb_tensor = torch.tensor(spkEmbs).float()
+    emoID_tensor = torch.tensor(emoIDs).long()
+    
+    return wav_tensor, cont_tensor, disc_tensor, spkEmb_tensor, emoID_tensor
 
 
 
@@ -233,14 +289,14 @@ if __name__ == "__main__":
     batch_size = 4
     
     loader = DataLoader(
-        datasetESD + datasetEmovDB, batch_size=batch_size, 
+        datasetESD, batch_size=batch_size, 
         shuffle=True, collate_fn=collate_fn
     )
 
     for i, data in enumerate(loader):
-        _data = F.normalize(data[2], p=2, dim=1)
+        # _data = F.normalize(data[2], p=2, dim=1)
         # _data = data[2]
-        c = torch.cdist(_data, _data).detach().cpu().numpy()
+        # c = torch.cdist(_data, _data).detach().cpu().numpy()
         #print(c)
         
         print(data[0].shape, data[1].shape, data[2].shape, data[3].shape)
