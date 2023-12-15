@@ -78,7 +78,8 @@ class Dataset_ESD(Dataset):
         """
         
         wav, disc, cont = np.load(self.wav_list[idx]), np.load(self.disc_list[idx]), np.load(self.cont_list[idx])
-        wav, disc, cont = self.crop_and_gain(wav, disc, cont, self.crop_len) # (cropped_len)
+        if self.mode != 'test':
+            wav, disc, cont = self.crop_and_gain(wav, disc, cont, self.crop_len) # (cropped_len)
 
         ### Speaker ID
         spk_emb = np.load(self.wav_list[idx].replace('wav', 'spkEmb'))
