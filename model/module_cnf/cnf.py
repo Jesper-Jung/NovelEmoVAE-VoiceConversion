@@ -6,6 +6,7 @@ from torchdiffeq import odeint_adjoint
 from torchdiffeq import odeint as odeint_normal
 
 from model.speakerEmbedder import kwarg_SPEAKER
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 __all__ = ["CNF", "SequentialFlow"]
 

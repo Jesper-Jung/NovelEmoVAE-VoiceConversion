@@ -2,6 +2,9 @@ from .odefunc import ODEfunc, ODEnet
 from .normalization import MovingBatchNorm1d
 from .cnf import CNF, SequentialFlow
 
+import torch
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 
 def count_nfe(model):
     class AccNumEvals(object):
@@ -80,7 +83,7 @@ def build_model(input_dim, hidden_dims, dim_spk, dim_emo, num_blocks, conditiona
 
 def cnf(input_dim, dims, dim_spk, dim_emo, num_blocks, config):
     dims = tuple(map(int, dims.split("-")))
-    model = build_model(input_dim, dims, dim_spk, dim_emo, num_blocks, True, config).cuda()
+    model = build_model(input_dim, dims, dim_spk, dim_emo, num_blocks, True, config).to(device)
     print("Number of trainable parameters of Point CNF: {}".format(count_parameters(model)))
     return model
 

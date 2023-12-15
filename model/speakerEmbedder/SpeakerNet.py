@@ -10,6 +10,9 @@ import time, itertools, importlib
 import sys
 sys.path.append('./model/speakerEmbedder')
 
+import torch
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 from DatasetLoader import test_dataset_loader
 from torch.cuda.amp import autocast, GradScaler
 
@@ -40,7 +43,7 @@ class SpeakerNet(nn.Module):
 
     def forward(self, data, label=None):
 
-        data = data.reshape(-1, data.size()[-1]).cuda()
+        data = data.reshape(-1, data.size()[-1]).to(device)
         outp = self.__S__.forward(data)
 
         if label == None:
@@ -98,7 +101,7 @@ class ModelTrainer(object):
 
             self.__model__.zero_grad()
 
-            label = torch.LongTensor(data_label).cuda()
+            label = torch.LongTensor(data_label).to(device)
 
             if self.mixedprec:
                 with autocast():
@@ -171,7 +174,7 @@ class ModelTrainer(object):
 
         ## Extract features for every image
         for idx, data in enumerate(test_loader):
-            inp1 = data[0][0].cuda()
+            inp1 = data[0][0].to(device)
             with torch.no_grad():
                 ref_feat = self.__model__(inp1).detach().cpu()
             feats[data[1][0]] = ref_feat
@@ -211,8 +214,8 @@ class ModelTrainer(object):
                 if len(data) == 2:
                     data = [random.randint(0, 1)] + data
 
-                ref_feat = feats[data[1]].cuda()
-                com_feat = feats[data[2]].cuda()
+                ref_feat = feats[data[1]].to(device)
+                com_feat = feats[data[2]].to(device)
 
                 if self.__model__.module.__L__.test_normalize:
                     ref_feat = F.normalize(ref_feat, p=2, dim=1)
