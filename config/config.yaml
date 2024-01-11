@@ -11,17 +11,17 @@ Loader:
 
 Model:
   use_one_hot: True
-  use_spec_input: True
-  use_spk_linear: False   # If false, you match the dim_spk by 512.
+  use_spec_input: False
+  use_spk_linear: True   # If false, you match the dim_spk by 512.
   n_emo: 7
 
   Style_Prior:
     dim_emo: 7
-    dim_spk: 512
+    dim_spk: 36
 
     CNF:  # FFJORD
-      dim_latent: 192
-      dims_cnf: "256-256-256-256-256"
+      dim_latent: 128
+      dims_cnf: "512-512-512-512-512"
 
     NSF:  # Neural Spline Flow
 
@@ -32,15 +32,15 @@ Model:
     #=== Encoder Configuration
     n_EncVCBlock: 3
 
-    dim_encoder_hidden: 192
-    kernel_size_encoder: 5
+    dim_encoder_hidden: 128
+    kernel_size_encoder: 3
     dropout_encoder: 0.
 
     #=== Decoder Configuration
-    n_DecVCBlock: 4
-    list_upscale: [1, 2, 1, 1]
+    n_DecVCBlock: 3
+    list_upscale: [2, 1, 1]
 
-    dim_decoder_hidden: 256
+    dim_decoder_hidden: 128
     kernel_size_decoder: 5
     dropout_decoder: 0.
 
@@ -66,15 +66,15 @@ Train:
   save_for_step: 10000
 
   epoch: 100
-  batch_size: 64
-  num_workers: 8
+  batch_size: 16
+  num_workers: 4
 
   learning_rate: 5.e-4    # best: 5.e-4 & 0.99999 LR STEP
-  lr_step: 0.99999
+  lr_step: 1
 
   beta_LL: 1.
   annealing_initial_step: 0
-  annealing_end_step: 40000
+  annealing_end_step: 1
   weight_decay: 1.e-4
   
 

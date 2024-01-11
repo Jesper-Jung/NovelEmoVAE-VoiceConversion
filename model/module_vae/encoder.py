@@ -13,7 +13,10 @@ class Encoder(nn.Module):
         super().__init__()
         
         """ Parameter """
-        dim_spec = config['Loader']['n_fft'] // 2 + 1
+        mode_spec_input = config['Model']['use_spec_input']
+        dim_mel = config['Loader']['dim_mel']
+        
+        dim_spec = config['Loader']['n_fft'] // 2 + 1 if mode_spec_input else dim_mel
         
         n_Block = config['Model']['VAE']['n_EncVCBlock']
         dim_hid = config['Model']['VAE']['dim_encoder_hidden']
@@ -108,7 +111,7 @@ class EncConvModule(nn.Module):
         d_hid,
         kernel_size,
         dropout,
-        down_scale = 2
+        down_scale = 1
     ):
         super().__init__()
         

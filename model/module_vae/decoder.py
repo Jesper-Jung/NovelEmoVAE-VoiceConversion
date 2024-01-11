@@ -23,7 +23,15 @@ class Decoder(nn.Module):
         if self.mode_unit_discrete:
             self.unit_embedding = nn.Embedding(config['Model']['Pretrained']['HuBERT']['vocab_size'], dim_hid)
         else:
+            # self.unit_embedding = nn.Sequential(
+            #     nn.Linear(768, dim_hid),
+            #     nn.GELU(),
+            #     nn.Linear(dim_hid, dim_hid),
+            #     nn.GELU(),
+            #     nn.Linear(dim_hid, dim_hid),
+            # )
             self.unit_embedding = nn.Linear(768, dim_hid)
+        self.norm_layer = nn.InstanceNorm1d(dim_hid, affine=False)        
         
         #=== Decoder-VQ Blocks
         n_Block = config['Model']['VAE']['n_DecVCBlock']
@@ -61,7 +69,7 @@ class Decoder(nn.Module):
         * z_style       || torch([B, dim_latent])
         """
         
-        hid = self.unit_embedding(unit)      # (B, T, dim_unit) -> (B, T, dim_hid)
+        hid = self.norm_layer(self.unit_embedding(unit))      # (B, T, dim_unit) -> (B, T, dim_hid)
         #hid = unit
        
         cond = z_style

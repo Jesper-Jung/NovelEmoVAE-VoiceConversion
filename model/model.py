@@ -55,11 +55,19 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         
         self.style_prior = cnf(dim_latent, dims_cnf, dim_spk, dim_emo, 1, config=config)
         
+        dim_enc_hid = config['Model']['VAE']['dim_encoder_hidden']
+        self.emotion_classifier = nn.Sequential(
+            nn.Linear(dim_enc_hid, dim_enc_hid//2),
+            nn.ReLU(),
+            nn.Linear(dim_enc_hid//2, dim_enc_hid//4),
+            nn.ReLU(),
+            nn.Linear(dim_enc_hid//4, 7)
+        )
+        
         
         #=== 4) Posterior Style Encoder (AdaIN-like)
         self.C_regularization = config['Model']['Posterior']['variance_regularization']
         self.flow_detach = config['Train']['mode_flow_detach']
-        dim_enc_hid = config['Model']['VAE']['dim_encoder_hidden']
         
         self.mode_spec = config['Model']['use_spec_input']
         self.adain_encoder = encoder.Encoder(config)
@@ -96,12 +104,13 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         # See the paper, Conditional Flow Variational Autoencoders for Structured Sequence Prediction
         
         enc_hid = self.adain_encoder(spec_true if self.mode_spec else mel_true)     
+
         if not self.flow_detach:  
             mu, logvar = self.mu_linear(enc_hid), self.logvar_linear(enc_hid)
             z_style = self.reparam(mu, logvar)
             
             loss_H_post = -0.5 * math.log(2 * math.pi) - 0.5 * logvar - 0.5
-            loss_H_post = loss_H_post.sum(-1).mean() / logvar.shape[1] / math.log(2)
+            loss_H_post = loss_H_post.sum(-1).mean() / logvar.shape[1]
             
         else:
             z_style = enc_hid
@@ -123,7 +132,11 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         logpx = logpz - delta_log
         
         loss_flowLL = -logpx.mean()
-        loss_flowBPD = loss_flowLL / z_t.shape[1] / math.log(2)
+        loss_flowBPD = loss_flowLL / z_t.shape[1]
+        
+        emo_pred = self.emotion_classifier(z_style)
+        loss_emo_pred = F.cross_entropy(emo_pred, emo_id)
+        #loss_emo_pred = torch.tensor([0]).to(device)
         
         
         # 4) reconstruction!
@@ -136,7 +149,7 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         
         
         # Return
-        loss = [loss_recon_1, loss_recon_2, loss_recon_3, loss_flowBPD, loss_H_post]
+        loss = [loss_recon_1, loss_recon_2, loss_recon_3, loss_flowBPD, loss_H_post, loss_emo_pred]
         return *mels, mel_true, loss
     
     

@@ -50,7 +50,7 @@ class SequentialFlow(nn.Module):
                 inds = range(len(self.chain))
         
         if self.use_one_hot:
-            emo_emb = F.one_hot(emo_id, num_classes=self.n_emo).float()
+            emo_emb = F.one_hot(emo_id.to(torch.int64), num_classes=self.n_emo).float()
         else:
             emo_emb = self.emo_embed(emo_id)        # (B, dim_emo)
             
@@ -128,7 +128,8 @@ class CNF(nn.Module):
 
         if reverse:
             integration_times = _flip(integration_times, 0)
-
+            
+            
         # Refresh the odefunc statistics.
         self.odefunc.before_odeint()
         

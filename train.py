@@ -24,7 +24,7 @@ from utils import makedirs, check_recon_mel
 contentVec_ckpt_path = './model/contentVec/checkpoint_best_legacy_500.pt'
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-torch.cuda.set_device(3)
+torch.cuda.set_device(0)
 
 torch.manual_seed(44)
 
@@ -130,10 +130,10 @@ class Train():
         mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
         
         # loss
-        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post = loss
-        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * (loss_flowLL + loss_H_post) * self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
+        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post, loss_emo_pred = loss
+        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + loss_emo_pred + self.beta_LL * (loss_flowLL + loss_H_post)#* self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
 
-        return loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post
+        return loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post, loss_emo_pred
 
 
     def training_step(self):
@@ -145,7 +145,7 @@ class Train():
             self.optimizer.zero_grad()
             
             # forward & calculate total loss
-            loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD, loss_H_post  = self.step(batch)
+            loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD, loss_H_post, loss_emo_pred  = self.step(batch)
 
             # backwarding
             loss_total.backward()
@@ -161,6 +161,7 @@ class Train():
                 "Mel 3 Loss": loss_mel_3.item(),
                 "Flow BPD Loss": loss_flowBPD.item(), 
                 "Flow H Loss": loss_H_post.item(), 
+                "Emo Cls Loss": loss_emo_pred.item(), 
             }
             
             self.training_step_end(loss_dict)      
@@ -175,7 +176,7 @@ class Train():
 
         if self.wandb_login:
             loss_dict["Annealing"] = self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
-            wandb.log(loss_dict)
+            wandb.log(loss_dict, step=self.cur_step)
 
         if self.cur_step % self.save_step == 0:
             save_path = os.path.join(self.asset_path, 'checkpoint_{}.pth.tar'.format(self.cur_step))
@@ -203,10 +204,10 @@ class Train():
             mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss = self.model(wav, unit, spk_emb, emo_id)
             
         # loss
-        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post = loss
-        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + self.beta_LL * (loss_flowLL + loss_H_post) * self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
+        loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post, loss_emo_pred = loss
+        loss_total = loss_mel_1 + loss_mel_2 + loss_mel_3 + loss_emo_pred + self.beta_LL * (loss_flowLL + loss_H_post) * self.annealing(self.cur_step, self.annealing_end, self.annealing_init)
 
-        return mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post
+        return mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowLL, loss_H_post, loss_emo_pred
     
 
     def validation_step(self):
@@ -214,7 +215,7 @@ class Train():
             eval_pbar = tqdm(self.eval_loader, desc="Validation...")
 
             for batch in eval_pbar:
-                mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD, loss_H_post = self.step_eval(batch)
+                mel_recon_1, mel_recon_2, mel_recon_3, mel_true, loss_total, loss_mel_1, loss_mel_2, loss_mel_3, loss_flowBPD, loss_H_post, loss_emo_pred = self.step_eval(batch)
 
                 """ log """
                 loss_dict = {
@@ -223,6 +224,7 @@ class Train():
                     "Mel 1 Loss": loss_mel_1.item(),
                     "Flow BPD Loss": loss_flowBPD.item(),
                     "Flow H Loss": loss_H_post.item(),
+                    "Emo Cls Loss": loss_emo_pred.item(),
                 }
 
                 eval_pbar.set_postfix(loss_dict)

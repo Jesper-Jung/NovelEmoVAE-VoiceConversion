@@ -59,7 +59,7 @@ def build_model(input_dim, hidden_dims, dim_spk, dim_emo, num_blocks, conditiona
             train_T=True,
             conditional=conditional,
             solver='dopri5',
-            use_adjoint=True,
+            use_adjoint=False,
             atol=1e-5,
             rtol=1e-5,
         )

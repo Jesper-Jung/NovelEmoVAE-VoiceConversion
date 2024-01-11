@@ -39,11 +39,11 @@ def _argparse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--best_path', type=str,
-        default="./assets/220320/1702593533.8864286"        
+        default="./assets/220320/1702915131.165659"        
     )
     parser.add_argument(
         '--saved_model', type=str,
-        default="checkpoint_90000.pth.tar"      # type example: ""
+        default="checkpoint_120000.pth.tar"      # type example: ""
     )
     
     args = parser.parse_args()
@@ -354,11 +354,11 @@ class Synthesizer():
 args = _argparse()
 synthesizer = Synthesizer(args)
 
-dir_custom = "../data/Dataset_Custom/Custom"
+dir_custom = "./data/Dataset_Custom/Custom"
 
-synthesizer.conversion_seen_to_seen(1, 40)
+synthesizer.conversion_seen_to_seen(5, 40)
 # synthesizer.Converse_custom_to_custom(
-#     os.path.join(dir_custom, "female1_happy_4b_2.wav"),
+#     os.path.join(dir_custom, "hamzi_001_eng.wav"),
 #     os.path.join(dir_custom, "male2_neutral_5b_2.wav"),
 # )
 
