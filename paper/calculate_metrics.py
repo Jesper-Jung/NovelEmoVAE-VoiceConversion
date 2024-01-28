@@ -1,6 +1,16 @@
 import sys
 sys.path.append("..")
 
+from jiwer import wer, cer
+from speechbrain.pretrained import SpeakerRecognition as SR
+from vocoder_eva.eval import eval_rmse_f0
+from dataset import Codebook_EmoState
+from transformers import AutoConfig, Wav2Vec2FeatureExtractor
+
+
+
+import speech_recognition as sr
+
 import os
 from utils.dataset_utils import get_mel_from_audio
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -11,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
 from torch.distributions import Normal
+import librosa
 
 torch.manual_seed(44)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -39,17 +50,17 @@ def _argparse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--best_path', type=str,
-        default="./assets/220320/our_best_wn"        
+        default="./assets/220320/our_best"        
     )
     parser.add_argument(
         '--saved_model', type=str,
-        default="checkpoint_150000.pth.tar"      # type example: ""
+        default="checkpoint_170000.pth.tar"      # type example: ""
     )
     
     args = parser.parse_args()
     return args
 
-def get_wave_from_mel(mel, pth_saving, mode="recon", sr=16000):
+def get_wave_from_mel(mel, pth_saving, mode="recon", sr=16000, return_wav=False):
     vocoder = torch.hub.load("bshall/hifigan:main", "hifigan", trust_repo=True).to(device)
     # Load Model
 
@@ -58,9 +69,11 @@ def get_wave_from_mel(mel, pth_saving, mode="recon", sr=16000):
         
     wav = vocoder(mel)
 
-    sf.write(pth_saving + f"/{mode}.wav", np.ravel(wav[0].numpy(force=True)), sr)
-
-
+    if not return_wav:
+        sf.write(pth_saving + f"/{mode}.wav", np.ravel(wav[0].numpy(force=True)), sr)
+    else:
+        return np.ravel(wav[0].numpy(force=True))
+    
 
 
 class Synthesizer():
@@ -90,10 +103,45 @@ class Synthesizer():
             open("./config/config_preprocess.yaml", "r"), Loader=yaml.FullLoader
         )
 
-        self.dataset_unseen = EmotionSpeechDataset(config, config_preprocess, 'test_u2u', synthesizer=True)
-        self.dataset_seen = EmotionSpeechDataset(config, config_preprocess, 'test_s2s', synthesizer=True)
+        self.dataset = EmotionSpeechDataset(config, config_preprocess, 'test', synthesizer=True)
+        
+        
+        # tools
+        self.r = sr.Recognizer()
+        self.verification = SR.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb", savedir="pretrained_models/spkrec-ecapa-voxceleb")
+        #https://huggingface.co/harshit345/xlsr-wav2vec-speech-emotion-recognition
+        self.vocoder = torch.hub.load("bshall/hifigan:main", "hifigan", trust_repo=True).to(device)
+        
+        self.dict_results = dict()
+    
 
+    def calculation_wer_cer(self, src_wav, tar_wav):
+        src_audio = self.numpy_array_to_audio_data(src_wav)
+        tar_audio = self.numpy_array_to_audio_data(tar_wav)
+        
+        with src_audio as source:
+            audio = self.r.record(source)
+            src_text = self.r.recognize_google(audio)
+            print(src_text)
+        
+        with tar_audio as source:
+            audio = self.r.record(source)
+            tar_text = self.r.recognize_google(audio)
+            print(tar_text)
+            
+        return self.calculate_wer_cer(src_text, tar_text)
+            
+        
 
+    def numpy_array_to_audio_data(self, np_array, sample_rate=16000):
+        # Write the NumPy array to a buffer as a WAV file
+        buffer = io.BytesIO()
+        write(buffer, sample_rate, np_array.astype(np.int16))
+        buffer.seek(0)
+
+        # Use the buffer as an audio source
+        audio_data = sr.AudioFile(buffer)
+        return audio_data
 
     def test_step(self, src_wav, tar_wav):
         from speechbrain.pretrained import EncoderClassifier
@@ -185,15 +233,45 @@ class Synthesizer():
             # tar_mel_npy = tar_mel.to('cpu').detach().numpy().T
             # ### ==================================================================
 
+
+    def _calculate_unseen_to_unseen(self, src_ind, tar_ind):
+        """ Data Preparing """
+        src_pth = self.dataset[src_ind]['pth']
+        tar_pth = self.dataset[tar_ind]['pth']
+        print(src_pth, tar_pth)
         
+        src_emo = self.dataset[src_ind]['emo_state']
+        tar_emo = self.dataset[tar_ind]['emo_state']
+        print(src_emo, tar_emo)
+        
+        src_wav, tar_wav = self.prepare_from_ESD(src_ind, tar_ind)        
+        
+        """ Forward """
+        torch_list, npy_list = self.test_step(src_wav, tar_wav)
+        
+        *converse_mel, src_mel, tar_mel = torch_list
+        *converse_mel_npy, src_mel_npy, tar_mel_npy = npy_list
+        
+        convert_wav = get_wave_from_mel(converse_mel[Codebook_EmoState[tar_emo]], self.test_path, mode='converse0', sr=16000)
+        sf.write('./target.wav', tar_wav, fs)
+        sf.write('./convert.wav', convert_wav, fs)
+        
+        
+        wer, cer = self.calculation_wer_cer(src_wav, convert_wav)
+        _, spk_prediction = verification.verify_files("./target.wav", "./convert.wav")
+        spk_prediction = float(spk_prediction)
+        eval_rmse_f0()
+        
+        # self.compute_mcd(tar_wav, convert_wav)
+        # self.compute_mcd(_wav, src_wav)
+    
 
-
-    def conversion_from_data(self, src_ind, tar_ind, mode_unseen=True):
+    def conversion_unseen_to_unseen(self, src_ind, tar_ind):
         # Make directory to save
         self._makedir()
 
         """ Data Preparing """
-        src_wav, tar_wav = self.prepare_from_ESD(src_ind, tar_ind, mode_unseen)        
+        src_wav, tar_wav = self.prepare_from_ESD(src_ind, tar_ind)        
 
         """ Forward """
         torch_list, npy_list = self.test_step(src_wav, tar_wav)
@@ -218,8 +296,6 @@ class Synthesizer():
         get_wave_from_mel(converse_mel[4], self.test_path, mode='converse4', sr=16000)
         get_wave_from_mel(src_mel, self.test_path, mode='GT', sr=16000)
         get_wave_from_mel(tar_mel, self.test_path, mode='target', sr=16000)
-
-
 
     def Converse_custom_to_custom(self, src_path, tar_path):
         ### read audio
@@ -283,15 +359,9 @@ class Synthesizer():
         get_wave_from_mel(src_mel, self.test_path, mode='GT', sr=16000)
         get_wave_from_mel(tar_mel, self.test_path, mode='target', sr=16000)
 
-
-
-
-    def prepare_from_ESD(self, src_ind, tar_ind, mode_unseen=True):
-        __dataset = self.dataset_unseen if mode_unseen else self.dataset_seen
-        print(len(__dataset))
-        
-        src_wav = torch.tensor(__dataset[src_ind]['wav']).float().to(device)
-        tar_wav = torch.tensor(__dataset[tar_ind]['wav']).float().to(device)
+    def prepare_from_ESD(self, src_ind, tar_ind):
+        src_wav = torch.tensor(self.dataset[src_ind]['wav']).float().to(device)
+        tar_wav = torch.tensor(self.dataset[tar_ind]['wav']).float().to(device)
 
         src_len = (src_wav.shape[0] // 80) * 80
         tar_len = (tar_wav.shape[0] // 80) * 80
@@ -301,12 +371,11 @@ class Synthesizer():
 
 
         print(src_len, tar_len)
-        print(__dataset[src_ind]['wav'])
-        print("Source: {}".format(__dataset[src_ind]['pth']))
-        print("Target: {}".format(__dataset[tar_ind]['pth']))
+        print(self.dataset[src_ind]['wav'])
+        print("Source: {}".format(self.dataset[src_ind]['pth']))
+        print("Target: {}".format(self.dataset[tar_ind]['pth']))
 
         return src_wav, tar_wav
-
 
     def _makedir(self):
         ts = time.time()
@@ -326,6 +395,37 @@ class Synthesizer():
             return (mel - _mean) / _std
         else:
             return (mel - self.mel_mean) / self.mel_std
+        
+
+    def calculate_wer_cer(self, original_transcription, converted_transcription):
+        """
+        Calculate Word Error Rate (WER) and Character Error Rate (CER).
+        
+        :param original_transcription: The original transcription as a string.
+        :param converted_transcription: The converted transcription as a string.
+        :return: A tuple containing the WER and CER.
+        """
+        # Calculate WER
+        word_error_rate = wer(original_transcription, converted_transcription)
+
+        # Calculate CER
+        character_error_rate = cer(original_transcription, converted_transcription)
+
+        return word_error_rate, character_error_rate
+
+
+    def compute_mcd(self, original_audio, converted_audio, sr=16000, n_mfcc=24):
+        
+        # Compute MFCCs
+        mfcc_original = librosa.feature.mfcc(y=original_audio, sr=sr, n_mfcc=n_mfcc)
+        mfcc_converted = librosa.feature.mfcc(y=converted_audio, sr=sr, n_mfcc=n_mfcc)
+
+        # Calculate the Euclidean distance and average it
+        distances = np.linalg.norm(mfcc_original - mfcc_converted, axis=1)
+        mcd = np.mean(distances)
+
+        return mcd
+
 
    # def _M4a2Wav(self, m4a_path):
 
@@ -334,16 +434,19 @@ class Synthesizer():
     
 args = _argparse()
 synthesizer = Synthesizer(args)
+print(len(synthesizer.dataset))
 
 dir_custom = "./data/Dataset_Custom/Custom"
 
-# synthesizer.conversion_from_data(120, 55, False)
-# synthesizer.conversion_from_data(220, 125, False)
-# synthesizer.conversion_from_data(155, 66)
-# synthesizer.conversion_from_data(214, 19)
-synthesizer.Converse_custom_to_custom(
-    os.path.join(dir_custom, "hamzi_001_eng.wav"),
-    os.path.join(dir_custom, "male1_neutral_2b_2.wav"),
-)
+synthesizer._calculate_unseen_to_unseen(58, 232)
+
+
+
+
+
+# synthesizer.Converse_custom_to_custom(
+#     os.path.join(dir_custom, "hamzi_001_eng.wav"),
+#     os.path.join(dir_custom, "male2_neutral_5b_2.wav"),
+# )
 
 

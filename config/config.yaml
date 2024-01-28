@@ -1,9 +1,9 @@
 Dataset:
-  sr: 16000
+  use_pitch_shift: False
 
-Loader:
+  sr: 16000
   dim_mel: 128      # for Hifi-GAN
-  length_mel: 192
+  length_mel: 128
 
   hop_size: 160     # for Hifi-GAN
   n_fft: 1024       # for Hifi-GAN
@@ -12,16 +12,19 @@ Loader:
 Model:
   use_one_hot: True
   use_spec_input: False
-  use_spk_linear: True   # If false, you match the dim_spk by 512.
-  n_emo: 7
+  use_spk_linear: False   # If false, you match the dim_spk by 192 (ecapa-tdnn).
+  use_train_T: True
+  n_emo: 5
+
 
   Style_Prior:
-    dim_emo: 7
-    dim_spk: 36
+    dim_emo: 5
+    dim_spk: 192
 
     CNF:  # FFJORD
+      use_train_T: True
       dim_latent: 128
-      dims_cnf: "512-512-512-512-512"
+      dims_cnf: "256-256-256-256-256"
 
     NSF:  # Neural Spline Flow
 
@@ -41,7 +44,7 @@ Model:
     list_upscale: [2, 1, 1]
 
     dim_decoder_hidden: 128
-    kernel_size_decoder: 5
+    kernel_size_decoder: 3
     dropout_decoder: 0.
 
 
@@ -66,16 +69,17 @@ Train:
   save_for_step: 10000
 
   epoch: 100
-  batch_size: 16
-  num_workers: 4
+  batch_size: 64
+  num_workers: 8
 
   learning_rate: 5.e-4    # best: 5.e-4 & 0.99999 LR STEP
-  lr_step: 1
+  lr_step: 1.
 
-  beta_LL: 1.
+  beta_LL: 0.0078125
+  beta_ent: 0.0078125
   annealing_initial_step: 0
   annealing_end_step: 1
-  weight_decay: 1.e-4
+  weight_decay: 0.
   
 
 

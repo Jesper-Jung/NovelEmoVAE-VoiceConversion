@@ -10,10 +10,11 @@ Codebook_EmoState = {
     "Amused": 2,        # Emov-DB
     "sad": 3,           # ESD
     "Sad": 3,
-    "excited": 4,       # ESD
-    "Surprise": 4,
+    "Excited": 4,       # JL_Corpus
+    "Surprised": 4,
+    "Surprise": 4,      # ESD
     "Disgusted": 5,     # Emov-DB
-    "Sleepy": 6         # Emov-DB
+    "Sleepy": 3         # Emov-DB
 }
 
 

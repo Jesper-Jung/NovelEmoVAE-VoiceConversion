@@ -56,13 +56,13 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         self.style_prior = cnf(dim_latent, dims_cnf, dim_spk, dim_emo, 1, config=config)
         
         dim_enc_hid = config['Model']['VAE']['dim_encoder_hidden']
-        self.emotion_classifier = nn.Sequential(
-            nn.Linear(dim_enc_hid, dim_enc_hid//2),
-            nn.ReLU(),
-            nn.Linear(dim_enc_hid//2, dim_enc_hid//4),
-            nn.ReLU(),
-            nn.Linear(dim_enc_hid//4, 7)
-        )
+        # self.emotion_classifier = nn.Sequential(
+        #     nn.Linear(dim_enc_hid, dim_enc_hid//2),
+        #     nn.ReLU(),
+        #     nn.Linear(dim_enc_hid//2, dim_enc_hid//4),
+        #     nn.ReLU(),
+        #     nn.Linear(dim_enc_hid//4, dim_emo)
+        # )
         
         
         #=== 4) Posterior Style Encoder (AdaIN-like)
@@ -71,9 +71,11 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         
         self.mode_spec = config['Model']['use_spec_input']
         self.adain_encoder = encoder.Encoder(config)
-        if not self.flow_detach:
-            self.mu_linear = nn.Linear(dim_enc_hid, dim_enc_hid, bias=False)
-            self.logvar_linear = nn.Linear(dim_enc_hid, dim_enc_hid, bias=False)
+        
+        # dim_enc_hid = config['Model']['VAE']['dim_encoder_hidden']
+        # if not self.flow_detach:
+        #     self.mu_linear = nn.Linear(dim_enc_hid, dim_enc_hid, bias=False)
+        #     self.logvar_linear = nn.Linear(dim_enc_hid, dim_enc_hid, bias=False)
         
         #=== 5) Decoder (AdaIN-like)
         self.adain_decoder = decoder.Decoder(config)
@@ -103,17 +105,20 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
         # in which the data log-likelihood is fully or partially ignored.
         # See the paper, Conditional Flow Variational Autoencoders for Structured Sequence Prediction
         
-        enc_hid = self.adain_encoder(spec_true if self.mode_spec else mel_true)     
+        # enc_hid = self.adain_encoder(spec_true if self.mode_spec else mel_true)     
+        enc_hid_mu, enc_hid_logvar = self.adain_encoder(spec_true if self.mode_spec else mel_true, emo_id)     
 
         if not self.flow_detach:  
-            mu, logvar = self.mu_linear(enc_hid), self.logvar_linear(enc_hid)
-            z_style = self.reparam(mu, logvar)
+            # mu, logvar = self.mu_linear(enc_hid), self.logvar_linear(enc_hid)
+            z_style = self.reparam(enc_hid_mu, enc_hid_logvar)
             
-            loss_H_post = -0.5 * math.log(2 * math.pi) - 0.5 * logvar - 0.5
-            loss_H_post = loss_H_post.sum(-1).mean() / logvar.shape[1]
+            loss_H_post = -0.5 * math.log(2 * math.pi) - 0.5 * enc_hid_logvar - 0.5
+            loss_H_post = loss_H_post.sum(-1, keepdim=True).mean()
+            # loss_H_post = loss_H_post.sum(-1).mean() / enc_hid_logvar.shape[1]
+            # loss_H_post = -self.gaussian_entropy(enc_hid_logvar).sum(-1, keepdim=True).mean()
             
         else:
-            z_style = enc_hid
+            # z_style = enc_hid
             loss_H_post = torch.tensor([0]).to(wav.device)
             
         #var = torch.zeros_like(mu).fill_(self.C_regularization)
@@ -126,17 +131,16 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
             torch.zeros(batch_size, 1).to(wav.device)
         )      # (batch_size, dim_noise), (batch_size, 1)
         
-        logpz = Normal(0, 1).log_prob(z_t).sum(-1)
-        
-        delta_log = delta_log.view(batch_size, -1).sum(-1, keepdim=True)
+        #logpz = Normal(0, 1).log_prob(z_t).sum(-1, keepdim=True)
+        logpz = self.standard_normal_logprob(z_t).sum(-1, keepdim=True)
         logpx = logpz - delta_log
         
-        loss_flowLL = -logpx.mean()
-        loss_flowBPD = loss_flowLL / z_t.shape[1]
+        loss_flowBPD = -logpx.mean()        # average by batch_size
+        # loss_flowBPD = loss_flowLL / z_t.shape[1]
         
-        emo_pred = self.emotion_classifier(z_style)
-        loss_emo_pred = F.cross_entropy(emo_pred, emo_id)
-        #loss_emo_pred = torch.tensor([0]).to(device)
+        # emo_pred = self.emotion_classifier(z_style)
+        # loss_emo_pred = F.cross_entropy(emo_pred, emo_id)
+        loss_emo_pred = torch.tensor([0]).to(device)
         
         
         # 4) reconstruction!
@@ -180,13 +184,18 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
     
     def standard_normal_logprob(self, z):
         dim_z = z.size(-1)
-        log_z = -0.5 * dim_z * np.log(2 * np.pi)
+        log_z = -0.5 * np.log(2 * np.pi)
         return log_z - z.pow(2) / 2
         
     def reparam(self, mu, logvar):
         std = torch.exp(logvar/2)
         eps = torch.randn_like(std)
         return mu + eps * std
+    
+    def gaussian_entropy(self, logvar):
+        const = 0.5 * float(logvar.size(1)) * (1. + np.log(np.pi * 2))
+        ent = 0.5 * logvar.sum(dim=1, keepdim=False) + const
+        return ent
     
     
 
@@ -195,7 +204,7 @@ class EmotionStyleGenerationFlowVAE(nn.Module):
 class PostNet(nn.Module):
     def __init__(self, config):
         super().__init__()
-        n_mel = config["Loader"]["dim_mel"]
+        n_mel = config["Dataset"]["dim_mel"]
 
         self.conv = nn.ModuleList()
 

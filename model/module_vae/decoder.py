@@ -31,7 +31,7 @@ class Decoder(nn.Module):
             #     nn.Linear(dim_hid, dim_hid),
             # )
             self.unit_embedding = nn.Linear(768, dim_hid)
-        self.norm_layer = nn.InstanceNorm1d(dim_hid, affine=False)        
+        # self.norm_layer = nn.InstanceNorm1d(dim_hid, affine=False)        
         
         #=== Decoder-VQ Blocks
         n_Block = config['Model']['VAE']['n_DecVCBlock']
@@ -41,17 +41,19 @@ class Decoder(nn.Module):
             DecVCBlock(config, list_upscale[i]) for i in range(n_Block)
         ])
         
-        self.linear_blocks = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(dim_enc_hid, dim_enc_hid),
-                nn.GELU(),
-                nn.Linear(dim_enc_hid, dim_enc_hid),
-                nn.GELU()
-            ) for _ in range(4)
-        ])
+        # self.linear_blocks = nn.ModuleList([
+        #     nn.Sequential(
+        #         nn.Linear(dim_enc_hid, dim_enc_hid),
+        #         nn.GELU(),
+        #         nn.Linear(dim_enc_hid, dim_enc_hid),
+        #         nn.GELU()
+        #     ) for _ in range(4)
+        # ])
         
         #=== last linear
-        dim_mel = config['Loader']['dim_mel']
+        dim_mel = config['Dataset']['dim_mel']
+        # self.post_linear = nn.Linear(dim_hid, dim_mel)
+        
         
         n_head = 2
         self.fft_block_2 = FFTBlock(dim_hid, n_head, dim_hid//2, dim_hid//2, dim_hid*4, [9, 1])
@@ -69,15 +71,19 @@ class Decoder(nn.Module):
         * z_style       || torch([B, dim_latent])
         """
         
-        hid = self.norm_layer(self.unit_embedding(unit))      # (B, T, dim_unit) -> (B, T, dim_hid)
+        # hid = self.norm_layer(self.unit_embedding(unit))      # (B, T, dim_unit) -> (B, T, dim_hid)
+        hid = self.unit_embedding(unit)      # (B, T, dim_unit) -> (B, T, dim_hid)
         #hid = unit
        
         cond = z_style
-        for layer in self.linear_blocks:
-            cond = layer(cond) + cond
+        # for layer in self.linear_blocks:
+        #     cond = layer(cond) + cond
             
         for layer in self.Blocks:
             hid = layer(hid, cond)
+            
+        # mel = self.post_linear(hid).contiguous().transpose(1, 2)
+        # return mel
             
         mels = [self.post_linear_1(hid).contiguous().transpose(1, 2)]       # (B, C, T)
         

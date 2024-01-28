@@ -69,8 +69,8 @@ class SequentialFlow(nn.Module):
 
 
 class CNF(nn.Module):
-    def __init__(self, odefunc, conditional=True, T=1.0, train_T=False, regularization_fns=None,
-                 solver='dopri5', atol=1e-5, rtol=1e-5, use_adjoint=True):
+    def __init__(self, odefunc, conditional=True, T=1.0, train_T=True, regularization_fns=None,
+                 solver='dopri5', atol=1e-5, rtol=1e-5, use_adjoint=False):
         super(CNF, self).__init__()
         
         if regularization_fns is not None and len(regularization_fns) > 0:

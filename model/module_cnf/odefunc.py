@@ -162,7 +162,7 @@ class ODEfunc(nn.Module):
             
             #=== unconditional CNF
             elif len(states) == 2:  
-                dy = self.diffeq(t, y)
+                dy = self.diffeq(t, y)  
                 divergence = self.divergence_fn(dy, y, e=self._e).view(-1, 1)
                 
                 return dy, -divergence

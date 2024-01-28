@@ -1,0 +1,21 @@
+Dataset_Info:
+  name: "SAVEE"
+  num_speakers: 10
+  num_emotions: 5
+  sr: 16000 # Hz
+
+Paths:
+  root_dataset: "/workspace/MSDegree/data"
+
+  path_dataset: "/ESD_Dataset"
+  path_save: "/ESD_preprocessed"
+
+Preprocess:
+  top_db: 20
+  length_mel: 128
+
+  hop_size: 160    # for Hifi-GAN
+  n_mel: 128    # for Hifi-GAN
+  n_fft: 1024   
+
+

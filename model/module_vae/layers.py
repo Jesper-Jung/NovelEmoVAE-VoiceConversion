@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as D
 import torch.nn.utils.spectral_norm as sn
+import torch.nn.utils.weight_norm as wn
 
 import torchaudio.transforms as transforms
 
@@ -20,6 +21,7 @@ class Conv(nn.Module):
         stride=1,
         bias=True,
         d_cond=None,
+        use_norm=True
     ):
         super().__init__()
         
@@ -31,9 +33,14 @@ class Conv(nn.Module):
             d_in, d_out, kernel_size, 
             padding=padding, padding_mode='replicate', stride=stride, bias=bias
         )
+        if not use_norm:
+            self.conv = wn(self.conv)
         
         self.dropout = nn.Dropout(dropout)
-        self.norm = AdaIN(d_out, d_cond) if d_cond is not None else nn.InstanceNorm1d(d_out, affine=False)
+        
+        self.norm = lambda x: x
+        if use_norm:
+            self.norm = AdaIN(d_out, d_cond) if d_cond is not None else nn.InstanceNorm1d(d_out, affine=False)
         
     def forward(self, x, cond=None):
         out = self.conv(x.contiguous().transpose(1, 2)).contiguous().transpose(1, 2)
@@ -131,9 +138,9 @@ class LogMelSpectrogram(torch.nn.Module):
         super().__init__()
         
         sr = config['Dataset']['sr']
-        self.n_fft = config['Loader']['n_fft']
-        self.hop_size = config['Loader']['hop_size']
-        dim_mel = config['Loader']['dim_mel']
+        self.n_fft = config['Dataset']['n_fft']
+        self.hop_size = config['Dataset']['hop_size']
+        dim_mel = config['Dataset']['dim_mel']
 
         self.melspctrogram = transforms.MelSpectrogram(
             sample_rate=sr,
@@ -159,9 +166,9 @@ class Spectrogram(nn.Module):
         super().__init__()
         
         sr = config['Dataset']['sr']
-        self.n_fft = config['Loader']['n_fft']
-        self.hop_size = config['Loader']['hop_size']
-        dim_mel = config['Loader']['dim_mel']
+        self.n_fft = config['Dataset']['n_fft']
+        self.hop_size = config['Dataset']['hop_size']
+        dim_mel = config['Dataset']['dim_mel']
 
         self.spctrogram = transforms.Spectrogram(
             n_fft=self.n_fft,
@@ -291,3 +298,23 @@ class InversePixelShuffle(nn.Module):
         x = x.view(batch_size, out_channels, width)
         return x
 
+
+
+class ConvBank(nn.Module):
+    def __init__(self, c_in: int, c_out: int, n_bank = 8, bank_scale = 1):
+        super(ConvBank, self).__init__()
+        self.conv_bank = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.ReflectionPad1d((k // 2, k // 2 - 1 + k % 2)),
+                    nn.Conv1d(c_in, c_out, kernel_size=k),
+                )
+                for k in range(bank_scale, n_bank + 1, bank_scale)
+            ]
+        )
+        self.act = nn.GELU()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        outs = [self.act(layer(x)) for layer in self.conv_bank]
+        out = torch.cat(outs + [x], dim=1)
+        return out

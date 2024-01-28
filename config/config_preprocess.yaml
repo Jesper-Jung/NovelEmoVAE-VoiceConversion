@@ -1,0 +1,76 @@
+Preprocess:
+  top_db: 20
+
+  hop_size: 160    # for Hifi-GAN
+  n_mel: 128    # for Hifi-GAN
+  n_fft: 1024   
+  sr: 16000   # Hz
+
+Root_Dataset: "/workspace/MSDegree/data"
+
+# ESD ====
+ESD:
+  num_speakers: 10
+  num_emotions: 5
+  list_emotions: [
+    'Angry', 'Happy', 'Neutral', 'Sad', 'Surprise'
+  ]
+  list_test_speakers: [
+    '0013', '0016', '0018', '0019'
+  ]   # M: 13, 19   //    F: 16, 18.
+
+  Paths:
+    path_dataset: "/ESD_Dataset"
+    path_save: "/ESD_preprocessed"
+
+
+# EmovDB ====
+EmovDB:
+  num_speakers: 4
+  num_emotions: 3
+  list_emotions: [
+    'neutral', 'anger', 'amused'
+  ]
+
+  Paths:
+    path_dataset: "/EmovDB_Dataset"
+    path_save: "/EmovDB_preprocessed"
+
+
+# RAVDESS ====
+RAVDESS:
+  num_speakers: 24
+  num_emotions: 5
+  list_emotions: [
+    '01', '03', '04', '05', '08'
+  ]
+
+  Paths:
+    path_dataset: "/RAVDESS"
+    path_save: "/RAVDESS_preprocessed"
+
+
+# SAVEE ==== We don't use it.
+SAVEE:
+  num_speakers: 4
+  num_emotions: 5
+  list_emotions: [
+    'n', 'h', 'sa', 'a', 'su'
+  ]
+
+  Paths:
+    path_dataset: "/SAVEE"
+    path_save: "/SAVEE_preprocessed"
+
+
+# JL_Corpus ====
+JL_Corpus:
+  num_speakers: 4
+  num_emotions: 5
+  list_emotions: [
+    'neutral', 'happy', 'sad', 'angry', 'excited'
+  ]
+
+  Paths:
+    path_dataset: "/JL_corpus/Raw JL corpus (unchecked and unannotated)/JL(wav+txt)"
+    path_save: "/JL_Corpus_preprocessed"

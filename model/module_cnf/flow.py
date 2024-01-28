@@ -56,7 +56,7 @@ def build_model(input_dim, hidden_dims, dim_spk, dim_emo, num_blocks, conditiona
         cnf = CNF(
             odefunc=odefunc,
             T=1.0,
-            train_T=True,
+            train_T=config['Model']['Style_Prior']['CNF']['use_train_T'],
             conditional=conditional,
             solver='dopri5',
             use_adjoint=False,
