@@ -246,7 +246,7 @@ if __name__ == "__main__":
 
     
     
-    contentVec_ckpt_path = "./checkpoint_best_legacy_500.pt"
+    contentVec_ckpt_path = config['Model']['Pretrained']['ContentVec']['model_path']
     
     models, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([contentVec_ckpt_path])
     speech2unitModel = models[0]            # Context Vec Model

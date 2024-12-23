@@ -23,8 +23,6 @@ from tqdm import tqdm
 
 from utils import makedirs, check_recon_mel
 
-contentVec_ckpt_path = './model/contentVec/checkpoint_best_legacy_500.pt'
-
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 torch.cuda.set_device(0)
 

@@ -55,6 +55,9 @@ Model:
       quantizer_name: "kmeans"
       vocab_size: 100
 
+    ContentVec:
+      model_path: "./EmoVAE/checkpoint_best_legacy_500.pt"
+
 
 
 
