@@ -74,14 +74,14 @@ Please download the following files before running the project:
    It is okay to contain .txt files and another any emotions such as anxious, encouraging, ...
 
 5. **Setting Dataset Directory**
-   After downloading the datasets as described in [2. Training Dataset] and [3. Validation Dataset], organize the files into a folder named Dataset with the following structure:
+   <br>After downloading the datasets as described in [2. Training Dataset] and [3. Validation Dataset], organize the files into a folder named Dataset with the following structure:
 ```
 └───Dataset
     ├───ESD
     ├───EmovDB
     └───JL_Corpus
 ```
-   Then, make empty folders in the Dataset folder which named of "ESD_preprocessed", "EmovDB_preprocessed", and "JL_Corpus_preprocessed". The final directory should look like this:
+   Then, make empty folders in the Dataset folder which named of "ESD_preprocessed", "EmovDB_preprocessed", and "JL_Corpus_preprocessed". <br>The final directory should look like this:
 ```
 └───Dataset
     ├───ESD
