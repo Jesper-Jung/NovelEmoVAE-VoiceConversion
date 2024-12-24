@@ -20,9 +20,10 @@ Please download the following files before running the project:
 1. **Pre-trained Model Weights (ContentVec)**:
    Download the pre-trained model file of ContentVec.
    - [checkpoint_best_legacy_500.pt](https://github.com/auspicious3000/contentvec?tab=readme-ov-file)
+
 2. **Training Dataset**:
    - [ESD Dataset](https://github.com/HLTSingapore/Emotional-Speech-Data)
-   <br> Please follow this structure for the ESD dataset directory.
+   Please follow this structure for the ESD dataset directory after you downloaded.
 ```
 └───ESD
     ├───0011
@@ -40,7 +41,7 @@ Please download the following files before running the project:
 ```  
 
    - [EmovDB Dataset](https://openslr.org/115/)
-   Please follow this structure for the EmovDB dataset directory.
+   Please follow this structure for the EmovDB dataset directory after you downloaded.
 ```
 └───EmovDB
     ├───bea
@@ -58,9 +59,37 @@ Please download the following files before running the project:
    <br>The speakers of the EmovDB Dataset are bea, jenie, josh and sam.<br>
 
 3. **Validation Dataset**:
-   - [JL_Corpus Dataset](https://path-to-dataset)
-   
+   - [JL_Corpus Dataset](https://www.kaggle.com/datasets/tli725/jl-corpus)
+   Please follow this structure for the EmovDB dataset directory after you downloaded.
+```
+└───JL_Corpus
+    ├───female1_angry_1a_1.wav
+    ├───female1_angry_1a_2.wav
+    │   ...
+    │
+    │   ...
+    └───male2_sad_15b_2.wav
+```
+   It is okay to contain .txt files and another any emotions such as anxious, encouraging, ...
 
-  
-4. **Example Input Data**:
-   - [input_data.json](https://path-to-example-data)
+4. **Setting Dataset Directory**
+   - After downloading the datasets as described in [2. Training Dataset] and [3. Validation Dataset], organize the files into a folder named Dataset with the following structure:
+```
+└───Dataset
+    ├───ESD
+    ├───EmovDB
+    └───JL_Corpus
+```
+   - Then, make empty folders in the Dataset folder which named of "ESD_preprocessed", "EmovDB_preprocessed", and "JL_Corpus_preprocessed". The final directory should look like this:
+```
+└───Dataset
+    ├───ESD
+    ├───ESD_preprocessed
+    ├───EmovDB
+    ├───EmovDB_preprocessed
+    ├───JL_Corpus
+    └───JL_Corpus_preprocessed
+```
+   
+## Installation
+Please download the following files before running the project:
