@@ -22,7 +22,7 @@ Please download the following files before running the project:
    - [checkpoint_best_legacy_500.pt](https://github.com/auspicious3000/contentvec?tab=readme-ov-file)
 2. **Training Dataset**:
    - [ESD Dataset](https://github.com/HLTSingapore/Emotional-Speech-Data)
-   Please follow this structure for the ESD dataset directory.
+   <br> Please follow this structure for the ESD dataset directory.
 ```
 └───ESD
     ├───0011
@@ -53,7 +53,9 @@ Please download the following files before running the project:
         ├───...
         └───neutral_477-504_0504.wav
 ```
-   .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.<br>Amused and Sleepiness speeches are excluded to match the emotions with the ESD dataset and JL Corpus dataset.<br>The speakers of the EmovDB Dataset are bea, jenie, josh and sam.<br>
+   .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.
+   <br>Amused and Sleepiness speeches are excluded to match the emotions with the ESD dataset and JL Corpus dataset.
+   <br>The speakers of the EmovDB Dataset are bea, jenie, josh and sam.<br>
 
 3. **Validation Dataset**:
    - [JL_Corpus Dataset](https://path-to-dataset)
