@@ -18,7 +18,8 @@ https://hub.docker.com/layers/pytorch/pytorch/2.1.0-cuda12.1-cudnn8-devel/images
 Please download the following files before running the project:
 
 1. **Pre-trained Model Weights (ContentVec)**:
-   - [checkpoint_best_legacy_500.pt]([https://path-to-model-weights](https://github.com/auspicious3000/contentvec?tab=readme-ov-file))
+   Download the pre-trained model file of ContentVec.
+   - [checkpoint_best_legacy_500.pt]([https://github.com/auspicious3000/contentvec?tab=readme-ov-file])
 2. **Training Dataset**:
    - [ESD Dataset](https://path-to-dataset)
    Please follow this structure for the ESD dataset directory.
@@ -52,8 +53,7 @@ Please download the following files before running the project:
         ├───...
         └───neutral_477-504_0504.wav
 ```
-   .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.
-   The speakers of the EmovDB Dataset are bea, jenie, josh and sam.
+   .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.<br>Amused and Sleepiness speeches are excluded to match the emotions with the ESD dataset and JL Corpus dataset.<br>The speakers of the EmovDB Dataset are bea, jenie, josh and sam.<br>
 
 3. **Validation Dataset**:
    - [JL_Corpus Dataset](https://path-to-dataset)
