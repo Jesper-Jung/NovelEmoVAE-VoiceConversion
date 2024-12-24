@@ -110,9 +110,9 @@ pip install -r requirements.txt
 ```
 
 ### Step 3. Configure in the YAML file:
-Open the configuration file (config.yaml, config_preprocessed.yaml).<br>
-Then, update the pre-trained model path (config.yaml) and the dataset paths that you created earlier (config_preprocess.yaml) as described in prerequisites.<br>
-Ensure the paths are consistent with the paths.
+- Open the configuration file (config.yaml, config_preprocessed.yaml).
+- Then, update the pre-trained model path (config.yaml) and the dataset paths that you created earlier (config_preprocess.yaml) as described in prerequisites.
+- Ensure the paths are consistent with the paths.
 
 ***config.yaml***
 ```yaml
@@ -123,20 +123,22 @@ Ensure the paths are consistent with the paths.
       vocab_size: 100
 
     ContentVec:
-      model_path: "./EmoVAE/checkpoint_best_legacy_500.pt" ## You need to verify this to make consistent with your file.
+      model_path: "./EmoVAE/checkpoint_best_legacy_500.pt" ## Verify this to make consistent with your file.
 ```
 
 ***config_preprocess.yaml***
 ```yaml
-Root_Dataset: "/workspace/Dataset"   ## You need to verify this to make consistent with your Dataset folder.
+Root_Dataset: "/workspace/Dataset"   ## Verify this to make consistent with your Dataset folder.
 
+##############
 # (Continue) #
+##############
 
-# Verify the folders in three section (ESD, EmovDB, and JL_Corpus)
+# Check in three section (ESD, EmovDB, and JL_Corpus)
 
   Paths:
-    path_dataset: "/ESD"   # You need to verify this to make consistent with your ESD folder.
-    path_save: "/ESD_preprocessed"   # You need to verify this to make consistent with your ESD_preprocessed folder.
+    path_dataset: "/ESD"   # Verify this to make consistent with your ESD folder.
+    path_save: "/ESD_preprocessed"   # Verify this to make consistent with your ESD_preprocessed folder.
 ```
 
 
