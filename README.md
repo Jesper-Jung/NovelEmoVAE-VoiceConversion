@@ -143,6 +143,12 @@ Root_Dataset: "/workspace/Dataset"   ## Make sure consistent with your Dataset f
     path_save: "/ESD_preprocessed"   # Make sure consistent with your ESD_preprocessed folder.
 ```
 
+## Preprocessing
+Before starting to train, preprocess the .wav files
+```bash
+python3 preprocesser_dataset.py
+```
+
 
 ## Train
 After setting the model parameters in the configuration file (config.yaml), then do this!
