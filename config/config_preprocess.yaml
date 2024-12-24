@@ -6,7 +6,7 @@ Preprocess:
   n_fft: 1024   
   sr: 16000   # Hz
 
-Root_Dataset: "/workspace/MSDegree/data"
+Root_Dataset: "/workspace/Dataset"
 
 # ESD ====
 ESD:
@@ -20,7 +20,7 @@ ESD:
   ]   # M: 13, 19   //    F: 16, 18.
 
   Paths:
-    path_dataset: "/ESD_Dataset"
+    path_dataset: "/ESD"
     path_save: "/ESD_preprocessed"
 
 
@@ -33,7 +33,7 @@ EmovDB:
   ]
 
   Paths:
-    path_dataset: "/EmovDB_Dataset"
+    path_dataset: "/EmovDB"
     path_save: "/EmovDB_preprocessed"
 
 
@@ -72,5 +72,5 @@ JL_Corpus:
   ]
 
   Paths:
-    path_dataset: "/JL_corpus/Raw JL corpus (unchecked and unannotated)/JL(wav+txt)"
+    path_dataset: "/JL_Corpus"
     path_save: "/JL_Corpus_preprocessed"
