@@ -125,12 +125,12 @@ pip install -r requirements.txt
       vocab_size: 100
 
     ContentVec:
-      model_path: "./EmoVAE/checkpoint_best_legacy_500.pt" ## Verify this to make consistent with your file.
+      model_path: "./EmoVAE/checkpoint_best_legacy_500.pt" ## Make sure consistent with your file.
 ```
 
 ***config_preprocess.yaml***
 ```yaml
-Root_Dataset: "/workspace/Dataset"   ## Verify this to make consistent with your Dataset folder.
+Root_Dataset: "/workspace/Dataset"   ## Make sure consistent with your Dataset folder.
 
 ##############
 # (Continue) #
@@ -139,8 +139,8 @@ Root_Dataset: "/workspace/Dataset"   ## Verify this to make consistent with your
 # Check in three section (ESD, EmovDB, and JL_Corpus)
 
   Paths:
-    path_dataset: "/ESD"   # Verify this to make consistent with your ESD folder.
-    path_save: "/ESD_preprocessed"   # Verify this to make consistent with your ESD_preprocessed folder.
+    path_dataset: "/ESD"   # Make sure consistent with your ESD folder.
+    path_save: "/ESD_preprocessed"   # Make sure consistent with your ESD_preprocessed folder.
 ```
 
 
