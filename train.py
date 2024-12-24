@@ -299,11 +299,11 @@ class Train():
 
 
 import argparse
-def argument_parse():
+def argument_parse(config):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--epochs', type=int, 
-        default=1000
+        default=config['Train']['epoch']
     )
     parser.add_argument('--gpu_visible_devices', type=str, default='3, 4, 5')
     parser.add_argument('--saved_step', type=int, default=0)
@@ -335,7 +335,7 @@ if __name__ == "__main__":
     mode_unit_discrete = config['Train']['mode_unit_discrete']
     
 
-    args = argument_parse()
+    args = argument_parse(config)
 
     if wandb_login:
         wandb.login()
