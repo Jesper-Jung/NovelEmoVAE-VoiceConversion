@@ -46,7 +46,7 @@ Please download the following files before running the project:
         ├───Angry
         ├───...
         └───Surprise
-```  
+```
 
 3. **Training Dataset (EmovDB)**:
    - [EmovDB Dataset](https://openslr.org/115/)
@@ -69,7 +69,7 @@ Please download the following files before running the project:
    <br>
 
 4. **Validation Dataset**:
-   - [JL_Corpus Dataset](https://www.kaggle.com/datasets/tli725/jl-corpus)
+   - [JL Corpus Dataset](https://www.kaggle.com/datasets/tli725/jl-corpus)
    Please follow this structure for the EmovDB dataset directory after you downloaded.
 ```
 └───JL_Corpus
