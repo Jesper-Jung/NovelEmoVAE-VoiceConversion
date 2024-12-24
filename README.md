@@ -19,9 +19,9 @@ Please download the following files before running the project:
 
 1. **Pre-trained Model Weights (ContentVec)**:
    Download the pre-trained model file of ContentVec.
-   - [checkpoint_best_legacy_500.pt]([https://github.com/auspicious3000/contentvec?tab=readme-ov-file])
+   - [checkpoint_best_legacy_500.pt](https://github.com/auspicious3000/contentvec?tab=readme-ov-file)
 2. **Training Dataset**:
-   - [ESD Dataset](https://path-to-dataset)
+   - [ESD Dataset](https://github.com/HLTSingapore/Emotional-Speech-Data)
    Please follow this structure for the ESD dataset directory.
 ```
 └───ESD
@@ -39,7 +39,7 @@ Please download the following files before running the project:
         └───Surprise
 ```  
 
-   - [EmovDB Dataset](https://path-to-dataset)
+   - [EmovDB Dataset](https://openslr.org/115/)
    Please follow this structure for the EmovDB dataset directory.
 ```
 └───EmovDB
