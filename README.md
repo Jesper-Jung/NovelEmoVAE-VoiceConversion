@@ -93,4 +93,65 @@ Please download the following files before running the project:
 ```
    
 ## Installation
-Please download the following files before running the project:
+Follow these steps to set up the project:
+
+### Step 1. Clone the repository:
+Download the project files to your local machine by running:
+
+```bash
+git clone https://github.com/Jesper-Jung/NovelEmoVAE-VoiceConversion.git
+```
+
+### Step 2. Install dependencies:
+Install the required libraries and packages by running:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 3. Configure in the YAML file:
+Open the configuration file (config.yaml, config_preprocessed.yaml).<br>
+Then, update the pre-trained model path (config.yaml) and the dataset paths that you created earlier (config_preprocess.yaml) as described in prerequisites.<br>
+Ensure the paths are consistent with the paths.
+
+***config.yaml***
+```yaml
+  Pretrained:
+    HuBERT:
+      dense_model_name: "hubert-base-ls960"
+      quantizer_name: "kmeans"
+      vocab_size: 100
+
+    ContentVec:
+      model_path: "./EmoVAE/checkpoint_best_legacy_500.pt" ## You need to verify this to make consistent with your file.
+```
+
+***config_preprocess.yaml***
+```yaml
+Root_Dataset: "/workspace/Dataset"   ## You need to verify this to make consistent with your Dataset folder.
+
+# (Continue) #
+
+# Verify the folders in three section (ESD, EmovDB, and JL_Corpus)
+
+  Paths:
+    path_dataset: "/ESD"   # You need to verify this to make consistent with your ESD folder.
+    path_save: "/ESD_preprocessed"   # You need to verify this to make consistent with your ESD_preprocessed folder.
+```
+
+
+## Installation
+After adjusting the model parameters in the configuration file (config.yaml), then do this!
+
+```bash
+python3 train.py
+```
+
+
+## Conversion
+```bash
+python3 synthesizer.py --model_directory your_dir --saved_model your_model_pth
+```
+
+## Demo
+A demo file is available in this repository.
