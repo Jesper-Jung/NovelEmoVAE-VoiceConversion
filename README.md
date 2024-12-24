@@ -158,4 +158,10 @@ python3 synthesizer.py --model_directory your_dir --saved_model your_model_pth
 ```
 
 ## Demo
-A demo file is available in this repository.
+A demo file is available in this repository. <br>
+
+- 0: neutral
+- 1: angry
+- 2: happy
+- 3: sad
+- 4: surprised
