@@ -21,7 +21,16 @@ Please download the following files before running the project:
 2. **Training Dataset**:
    - [ESD Dataset](https://path-to-dataset)
    - [EmovDB Dataset](https://path-to-dataset)
-  project/ ├── data/ │ ├── train/ │ │ └── training_data.json │ ├── val/ │ │ └── validation_data.json └── weights/ └── model_weights.pth
+└───wavs
+    ├───dev
+    │   ├───LJ001-0001.wav
+    │   ├───...
+    │   └───LJ050-0278.wav
+    └───train
+        ├───LJ002-0332.wav
+        ├───...
+        └───LJ047-0007.wav
+
 4. **Validation Dataset**:
 3. **Example Input Data**:
    - [input_data.json](https://path-to-example-data)
