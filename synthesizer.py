@@ -38,7 +38,7 @@ contentVec_ckpt_path = "./checkpoint_best_legacy_500.pt"
 def _argparse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--best_path', type=str,
+        '--model_directory', type=str,
         default="./assets/220320/our_best_wn"        
     )
     parser.add_argument(
@@ -67,11 +67,11 @@ class Synthesizer():
     def __init__(self, args):
         """ Model & Checkpoint """
         # Checkpoint
-        ckpt_pth = os.path.join(args.best_path, args.saved_model)
+        ckpt_pth = os.path.join(args.model_directory, args.saved_model)
         ckpt = torch.load(ckpt_pth, map_location=device)
 
         # Yaml Config
-        self.config = yaml.load(open(os.path.join(args.best_path, "config.yaml")), Loader=yaml.FullLoader)
+        self.config = yaml.load(open(os.path.join(args.model_directory, "config.yaml")), Loader=yaml.FullLoader)
         self.mode_unit_discrete = self.config["Train"]["mode_unit_discrete"]
         self.dim_latent = self.config["Model"]["Style_Prior"]["CNF"]["dim_latent"]
         
