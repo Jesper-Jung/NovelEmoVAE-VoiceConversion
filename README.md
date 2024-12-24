@@ -142,7 +142,7 @@ Root_Dataset: "/workspace/Dataset"   ## Verify this to make consistent with your
 ```
 
 
-## Installation
+## Train
 After setting the model parameters in the configuration file (config.yaml), then do this!
 
 ```bash
