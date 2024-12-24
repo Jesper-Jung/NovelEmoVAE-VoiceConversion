@@ -143,7 +143,7 @@ Root_Dataset: "/workspace/Dataset"   ## Verify this to make consistent with your
 
 
 ## Installation
-After adjusting the model parameters in the configuration file (config.yaml), then do this!
+After setting the model parameters in the configuration file (config.yaml), then do this!
 
 ```bash
 python3 train.py
