@@ -57,7 +57,8 @@ Please download the following files before running the project:
 ```
    .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.
    <br>Amused and Sleepiness speeches are excluded to match the emotions with the ESD dataset and JL Corpus dataset.
-   <br>Notice that the speakers of the EmovDB Dataset are bea, jenie, josh and sam.<br>
+   <br>Notice that the speakers of the EmovDB Dataset are bea, jenie, josh and sam.
+   <br>
 
 4. **Validation Dataset**:
    - [JL_Corpus Dataset](https://www.kaggle.com/datasets/tli725/jl-corpus)
@@ -81,7 +82,8 @@ Please download the following files before running the project:
     ├───EmovDB
     └───JL_Corpus
 ```
-   Then, make empty folders in the Dataset folder which named of "ESD_preprocessed", "EmovDB_preprocessed", and "JL_Corpus_preprocessed". <br>The final directory should look like this:
+   Then, make empty folders in the Dataset folder which named of "ESD_preprocessed", "EmovDB_preprocessed", and "JL_Corpus_preprocessed". 
+   <br><br>The final directory should look like this:
 ```
 └───Dataset
     ├───ESD
