@@ -65,7 +65,7 @@ Please download the following files before running the project:
 ```
    .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.
    <br>Amused and Sleepiness speeches are excluded to match the emotions with the ESD dataset and JL Corpus dataset.
-   <br>Notice that the speakers of the EmovDB Dataset are bea, jenie, josh and sam.
+   <br>Note that the speakers of the EmovDB Dataset are bea, jenie, josh and sam.
    <br>
 
 4. **Validation Dataset**:
