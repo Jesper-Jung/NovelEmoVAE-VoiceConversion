@@ -17,20 +17,47 @@ https://hub.docker.com/layers/pytorch/pytorch/2.1.0-cuda12.1-cudnn8-devel/images
 Please download the following files before running the project:
 
 1. **Pre-trained Model Weights (ContentVec)**:
-   - [model_weights.pth](https://path-to-model-weights)
+   - [checkpoint_best_legacy_500.pt]([https://path-to-model-weights](https://github.com/auspicious3000/contentvec?tab=readme-ov-file))
 2. **Training Dataset**:
    - [ESD Dataset](https://path-to-dataset)
-   - [EmovDB Dataset](https://path-to-dataset)
-└───wavs
-    ├───dev
-    │   ├───LJ001-0001.wav
+   Please follow this structure for the ESD dataset directory.
+```
+└───ESD
+    ├───0011
+    │   ├───Angry
+    │   │   ├───0011_000351.wav
+    │   │   ├───...
+    │   │   └───0011_000700.wav
     │   ├───...
-    │   └───LJ050-0278.wav
-    └───train
-        ├───LJ002-0332.wav
+    │   └───Surprise
+    │   ...
+    └───0020
+        ├───Angry
         ├───...
-        └───LJ047-0007.wav
+        └───Surprise
+```  
 
-4. **Validation Dataset**:
-3. **Example Input Data**:
+   - [EmovDB Dataset](https://path-to-dataset)
+   Please follow this structure for the EmovDB dataset directory.
+```
+└───EmovDB
+    ├───bea
+    │   ├───anger_1-28_0001.wav
+    │   ├───...
+    │   └───neutral_337-364_0364.wav
+    │   ...
+    └───sam
+        ├───anger_1-28_0001.wav
+        ├───...
+        └───neutral_477-504_0504.wav
+```
+   .wav files below the name folder should have only emotional speeches of anger, neutral, and happy.
+   The speakers of the EmovDB Dataset are bea, jenie, josh and sam.
+
+3. **Validation Dataset**:
+   - [JL_Corpus Dataset](https://path-to-dataset)
+   
+
+  
+4. **Example Input Data**:
    - [input_data.json](https://path-to-example-data)
