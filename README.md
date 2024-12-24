@@ -1,5 +1,5 @@
 # Novel VAE-based Framework to Infer Complex Speaking Style from Arbitrary Speaker and Emotion State
-[![Paper](https://img.shields.io/badge/s-space-Paper-<COLOR>.svg)](https://s-space.snu.ac.kr/handle/10371/210136)
+[![Paper](https://img.shields.io/badge/s_space-Paper-<COLOR>.svg)](https://s-space.snu.ac.kr/handle/10371/210136)
 
 - Paper (https://s-space.snu.ac.kr/handle/10371/210136)
 - Generative model based unseen-to-unseen emotional voice conversion.
